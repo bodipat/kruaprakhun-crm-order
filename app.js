@@ -2151,161 +2151,172 @@ const StoreAdmin = {
   },
 
   renderLedger() {
-    // 1. Initial defaults
-    const dateInput = document.getElementById('led-date');
-    if (dateInput && !dateInput.value) {
-      dateInput.value = new Date().toISOString().split('T')[0];
-    }
-    
-    // Populate dropdown in form if empty
-    const menuSelect = document.getElementById('led-menu-select');
-    if (menuSelect && menuSelect.options.length === 0) {
-      const menus = db.get('menus') || [];
-      menus.forEach(m => {
-        const el = document.createElement('option');
-        el.value = m.id;
-        el.textContent = m.name;
-        el.dataset.price = m.base_price;
-        menuSelect.appendChild(el);
-      });
-    }
-
-    // 2. Fetch data sources
-    const orders = db.get('orders') || [];
-    const manualLedger = db.get('ledger') || [];
-    
-    // Create virtual ledger items from verified orders
-    const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
-    const virtualOrderItems = validOrders.map(o => {
-      const orderIdStr = o.order_id ? String(o.order_id) : '';
-      const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
-        ? o.order_datetime.split(' ')[0] 
-        : new Date().toISOString().split('T')[0];
-      return {
-        id: o.order_id || 'v_order_' + Math.random().toString(36).substr(2, 5),
-        date: orderDateStr,
-        type: 'income',
-        category: 'ขายอาหาร',
-        menu_id: null,
-        menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
-        quantity: null,
-        amount: parseFloat(o.total_amount) || 0,
-        description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
-        isVirtual: true
-      };
-    });
-
-    const combinedLedger = [...manualLedger, ...virtualOrderItems];
-    
-    // Sort combined by date descending safely
-    combinedLedger.sort((a, b) => {
-      const dateA = a.date || '';
-      const dateB = b.date || '';
-      return dateB.localeCompare(dateA);
-    });
-
-    // 3. Apply Filters
-    const startDate = document.getElementById('filter-start-date').value;
-    const endDate = document.getElementById('filter-end-date').value;
-    const filterType = document.getElementById('filter-type').value;
-    const filterCategory = document.getElementById('filter-category').value;
-
-    const filteredLedger = combinedLedger.filter(item => {
-      if (startDate && item.date < startDate) return false;
-      if (endDate && item.date > endDate) return false;
-      if (filterType !== 'all' && item.type !== filterType) return false;
-      if (filterCategory !== 'all' && item.category !== filterCategory) return false;
-      return true;
-    });
-
-    // 4. Calculate Summaries on filtered dataset to reflect date/category selections
-    const totalRevenue = filteredLedger.filter(i => i.type === 'income').reduce((acc, i) => acc + i.amount, 0);
-    const totalExpenses = filteredLedger.filter(i => i.type === 'expense').reduce((acc, i) => acc + i.amount, 0);
-    const netProfit = totalRevenue - totalExpenses;
-
-    document.getElementById('ledger-revenue-val').textContent = totalRevenue.toLocaleString() + ' ฿';
-    document.getElementById('ledger-expenses-val').textContent = totalExpenses.toLocaleString() + ' ฿';
-    
-    const profitEl = document.getElementById('ledger-profit-val');
-    profitEl.textContent = netProfit.toLocaleString() + ' ฿';
-    if (netProfit >= 0) {
-      profitEl.style.color = 'var(--primary)';
-    } else {
-      profitEl.style.color = '#ef4444';
-    }
-
-    // 5. Calculate Top 5 Best-Sellers (Unfiltered / Overall logic to match paper requirements)
-    const menuSales = {};
-    
-    // Accumulate manual menu sales
-    combinedLedger.forEach(item => {
-      if (item.type === 'income' && item.category === 'ขายอาหาร' && item.quantity) {
-        const name = item.menu_name || 'ไม่ระบุชื่อเมนู';
-        menuSales[name] = (menuSales[name] || 0) + item.quantity;
+    try {
+      // 1. Initial defaults
+      const dateInput = document.getElementById('led-date');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
       }
-    });
-    
-    // Accumulate online sales
-    validOrders.forEach(o => {
-      if (o.items) {
-        o.items.forEach(it => {
-          const name = it.menu_name;
-          menuSales[name] = (menuSales[name] || 0) + it.quantity;
+      
+      // Populate dropdown in form if empty
+      const menuSelect = document.getElementById('led-menu-select');
+      if (menuSelect && menuSelect.options.length === 0) {
+        const menus = db.get('menus') || [];
+        menus.forEach(m => {
+          const el = document.createElement('option');
+          el.value = m.id;
+          el.textContent = m.name;
+          el.dataset.price = m.base_price;
+          menuSelect.appendChild(el);
         });
       }
-    });
 
-    const sortedBestSellers = Object.entries(menuSales)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    let bHtml = '';
-    if (sortedBestSellers.length === 0) {
-      bHtml = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; padding: 10px 0;">ไม่มีข้อมูลยอดขาย</div>';
-    } else {
-      sortedBestSellers.forEach(([name, qty], index) => {
-        bHtml += `
-          <div class="bestseller-item">
-            <span class="bestseller-rank">#${index + 1}</span>
-            <span class="bestseller-name">${name}</span>
-            <span class="bestseller-qty">${qty} จาน</span>
-          </div>
-        `;
+      // 2. Fetch data sources
+      const orders = db.get('orders') || [];
+      const manualLedger = db.get('ledger') || [];
+      
+      // Create virtual ledger items from verified orders
+      const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
+      const virtualOrderItems = validOrders.map(o => {
+        const orderIdStr = o.order_id ? String(o.order_id) : '';
+        const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
+          ? o.order_datetime.split(' ')[0] 
+          : new Date().toISOString().split('T')[0];
+        return {
+          id: o.order_id || 'v_order_' + Math.random().toString(36).substr(2, 5),
+          date: orderDateStr,
+          type: 'income',
+          category: 'ขายอาหาร',
+          menu_id: null,
+          menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
+          quantity: null,
+          amount: parseFloat(o.total_amount) || 0,
+          description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
+          isVirtual: true
+        };
       });
-    }
-    document.getElementById('ledger-bestsellers-list').innerHTML = bHtml;
 
-    // 6. Render table rows
-    let tHtml = '';
-    if (filteredLedger.length === 0) {
-      tHtml = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">ไม่พบรายการในระบบ</td></tr>';
-    } else {
-      filteredLedger.forEach(item => {
-        const typeBadge = item.type === 'income' 
-          ? `<span class="ledger-badge-income">รายรับ</span>` 
-          : `<span class="ledger-badge-expense">รายจ่าย</span>`;
-           
-        const catTag = `<span class="ledger-cat-tag">${item.category}</span>`;
-        const deleteBtn = item.isVirtual 
-          ? `<span style="color: var(--text-muted); font-size: 0.7rem; font-style: italic;">ออเดอร์เว็บ</span>`
-          : `<button class="btn-action btn-delete" onclick="StoreAdmin.deleteLedgerItem('${item.id}')" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;">×</button>`;
-           
-        const formattedAmount = (item.type === 'income' ? '+' : '-') + item.amount.toLocaleString() + ' ฿';
-        const amountStyle = item.type === 'income' ? 'color: var(--primary); font-weight: 700; text-align: right;' : 'color: #ef4444; font-weight: 700; text-align: right;';
-        
-        tHtml += `
-          <tr style="border-bottom: 1px solid rgba(19, 78, 30, 0.04); height: 45px;">
-            <td style="padding: 8px;">${item.date}</td>
-            <td style="padding: 8px;">${typeBadge}</td>
-            <td style="padding: 8px;">${catTag}</td>
-            <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
-            <td style="padding: 8px; ${amountStyle}">${formattedAmount}</td>
-            <td style="padding: 8px; text-align: center;">${deleteBtn}</td>
-          </tr>
-        `;
+      const combinedLedger = [...manualLedger, ...virtualOrderItems];
+      
+      // Sort combined by date descending safely
+      combinedLedger.sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        return dateB.localeCompare(dateA);
       });
+
+      // 3. Apply Filters
+      const startDate = document.getElementById('filter-start-date').value;
+      const endDate = document.getElementById('filter-end-date').value;
+      const filterType = document.getElementById('filter-type').value;
+      const filterCategory = document.getElementById('filter-category').value;
+
+      const filteredLedger = combinedLedger.filter(item => {
+        if (startDate && item.date < startDate) return false;
+        if (endDate && item.date > endDate) return false;
+        if (filterType !== 'all' && item.type !== filterType) return false;
+        if (filterCategory !== 'all' && item.category !== filterCategory) return false;
+        return true;
+      });
+
+      // 4. Calculate Summaries on filtered dataset to reflect date/category selections
+      const totalRevenue = filteredLedger.filter(i => i.type === 'income').reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
+      const totalExpenses = filteredLedger.filter(i => i.type === 'expense').reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
+      const netProfit = totalRevenue - totalExpenses;
+
+      document.getElementById('ledger-revenue-val').textContent = totalRevenue.toLocaleString() + ' ฿';
+      document.getElementById('ledger-expenses-val').textContent = totalExpenses.toLocaleString() + ' ฿';
+      
+      const profitEl = document.getElementById('ledger-profit-val');
+      profitEl.textContent = netProfit.toLocaleString() + ' ฿';
+      if (netProfit >= 0) {
+        profitEl.style.color = 'var(--primary)';
+      } else {
+        profitEl.style.color = '#ef4444';
+      }
+
+      // 5. Calculate Top 5 Best-Sellers (Unfiltered / Overall logic to match paper requirements)
+      const menuSales = {};
+      
+      // Accumulate manual menu sales
+      combinedLedger.forEach(item => {
+        if (item.type === 'income' && item.category === 'ขายอาหาร' && item.quantity) {
+          const name = item.menu_name || 'ไม่ระบุชื่อเมนู';
+          const qty = parseInt(item.quantity) || 0;
+          menuSales[name] = (menuSales[name] || 0) + qty;
+        }
+      });
+      
+      // Accumulate online sales
+      validOrders.forEach(o => {
+        if (o.items) {
+          o.items.forEach(it => {
+            const name = it.menu_name;
+            const qty = parseInt(it.quantity) || 0;
+            menuSales[name] = (menuSales[name] || 0) + qty;
+          });
+        }
+      });
+
+      const sortedBestSellers = Object.entries(menuSales)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      let bHtml = '';
+      if (sortedBestSellers.length === 0) {
+        bHtml = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; padding: 10px 0;">ไม่มีข้อมูลยอดขาย</div>';
+      } else {
+        sortedBestSellers.forEach(([name, qty], index) => {
+          bHtml += `
+            <div class="bestseller-item">
+              <span class="bestseller-rank">#${index + 1}</span>
+              <span class="bestseller-name">${name}</span>
+              <span class="bestseller-qty">${qty} จาน</span>
+            </div>
+          `;
+        });
+      }
+      document.getElementById('ledger-bestsellers-list').innerHTML = bHtml;
+
+      // 6. Render table rows
+      let tHtml = '';
+      if (filteredLedger.length === 0) {
+        tHtml = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">ไม่พบรายการในระบบ</td></tr>';
+      } else {
+        filteredLedger.forEach(item => {
+          const typeBadge = item.type === 'income' 
+            ? `<span class="ledger-badge-income">รายรับ</span>` 
+            : `<span class="ledger-badge-expense">รายจ่าย</span>`;
+             
+          const catTag = `<span class="ledger-cat-tag">${item.category}</span>`;
+          const deleteBtn = item.isVirtual 
+            ? `<span style="color: var(--text-muted); font-size: 0.7rem; font-style: italic;">ออเดอร์เว็บ</span>`
+            : `<button class="btn-action btn-delete" onclick="StoreAdmin.deleteLedgerItem('${item.id}')" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;">×</button>`;
+             
+          const itemAmt = parseFloat(item.amount) || 0;
+          const formattedAmount = (item.type === 'income' ? '+' : '-') + itemAmt.toLocaleString() + ' ฿';
+          const amountStyle = item.type === 'income' ? 'color: var(--primary); font-weight: 700; text-align: right;' : 'color: #ef4444; font-weight: 700; text-align: right;';
+          
+          tHtml += `
+            <tr style="border-bottom: 1px solid rgba(19, 78, 30, 0.04); height: 45px;">
+              <td style="padding: 8px;">${item.date}</td>
+              <td style="padding: 8px;">${typeBadge}</td>
+              <td style="padding: 8px;">${catTag}</td>
+              <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
+              <td style="padding: 8px; ${amountStyle}">${formattedAmount}</td>
+              <td style="padding: 8px; text-align: center;">${deleteBtn}</td>
+            </tr>
+          `;
+        });
+      }
+      document.getElementById('ledger-table-body').innerHTML = tHtml;
+    } catch (err) {
+      console.error("Error rendering ledger:", err);
+      const tbody = document.getElementById('ledger-table-body');
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" style="color: #ef4444; text-align: center; padding: 20px;">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</td></tr>`;
+      }
     }
-    document.getElementById('ledger-table-body').innerHTML = tHtml;
   },
 
   addLedgerItem(event) {
