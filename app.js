@@ -2075,6 +2075,9 @@ const StoreAdmin = {
   handleLedgerFormTypeChange() {
     const type = document.getElementById('led-type').value;
     const catSelect = document.getElementById('led-category');
+    const menuSection = document.getElementById('led-menu-sales-section');
+    const unitSection = document.getElementById('led-expense-unit-section');
+    const vendorGroup = document.getElementById('led-vendor-group');
     
     // Clear and build categories options based on type
     catSelect.innerHTML = '';
@@ -2090,7 +2093,8 @@ const StoreAdmin = {
         el.textContent = opt.text;
         catSelect.appendChild(el);
       });
-      // Show menu sales section if category is 'ขายอาหาร'
+      if (unitSection) unitSection.style.display = 'none';
+      if (vendorGroup) vendorGroup.style.display = 'none';
       this.handleLedgerCategoryChange();
     } else {
       const expenseOptions = [
@@ -2111,8 +2115,9 @@ const StoreAdmin = {
         el.textContent = opt.text;
         catSelect.appendChild(el);
       });
-      // Hide menu sales section
-      document.getElementById('led-menu-sales-section').style.display = 'none';
+      if (menuSection) menuSection.style.display = 'none';
+      if (unitSection) unitSection.style.display = 'grid';
+      if (vendorGroup) vendorGroup.style.display = 'block';
     }
   },
 
@@ -2148,6 +2153,14 @@ const StoreAdmin = {
       const price = parseFloat(selectedOption.dataset.price) || 0;
       const qty = parseInt(document.getElementById('led-quantity').value) || 1;
       document.getElementById('led-amount').value = price * qty;
+    }
+  },
+
+  calculateLedgerExpenseTotal() {
+    const qty = parseFloat(document.getElementById('led-unit-qty').value) || 0;
+    const price = parseFloat(document.getElementById('led-unit-price').value) || 0;
+    if (qty > 0 && price > 0) {
+      document.getElementById('led-amount').value = Math.round(qty * price);
     }
   },
 
@@ -2336,6 +2349,9 @@ const StoreAdmin = {
     let menuId = null;
     let menuName = null;
     let quantity = null;
+    let unitPrice = null;
+    let unitLabel = null;
+    let vendor = null;
     
     if (type === 'income' && category === 'ขายอาหาร') {
       const menuSelect = document.getElementById('led-menu-select');
@@ -2344,6 +2360,30 @@ const StoreAdmin = {
       quantity = parseInt(document.getElementById('led-quantity').value) || 1;
       if (!desc) {
         desc = `ยอดขายแมนนวล: ${menuName} x ${quantity}`;
+      }
+    } else if (type === 'expense') {
+      const uQty = parseFloat(document.getElementById('led-unit-qty').value);
+      const uPrice = parseFloat(document.getElementById('led-unit-price').value);
+      const uLabel = document.getElementById('led-unit-label').value.trim();
+      const vend = document.getElementById('led-vendor').value.trim();
+      
+      quantity = !isNaN(uQty) ? uQty : null;
+      unitPrice = !isNaN(uPrice) ? uPrice : null;
+      unitLabel = uLabel || null;
+      vendor = vend || null;
+      
+      let detailParts = [];
+      if (quantity > 0 && unitLabel) detailParts.push(`${quantity} ${unitLabel}`);
+      if (unitPrice > 0) detailParts.push(`@${unitPrice} ฿`);
+      if (vendor) detailParts.push(`(ร้าน: ${vendor})`);
+      
+      const detailsStr = detailParts.join(' ');
+      if (!desc) {
+        desc = `ซื้อ${category}` + (detailsStr ? ` ${detailsStr}` : '');
+      } else {
+        if (vendor && !desc.includes(vendor)) {
+          desc += ` (ร้าน: ${vendor})`;
+        }
       }
     }
     
@@ -2354,6 +2394,9 @@ const StoreAdmin = {
       menu_id: menuId,
       menu_name: menuName,
       quantity,
+      unit_price: unitPrice,
+      unit: unitLabel,
+      vendor,
       amount,
       description: desc || `รายการแมนนวล ${category}`
     };
@@ -2376,6 +2419,10 @@ const StoreAdmin = {
     document.getElementById('led-amount').value = '';
     document.getElementById('led-desc').value = '';
     document.getElementById('led-quantity').value = '1';
+    document.getElementById('led-unit-qty').value = '';
+    document.getElementById('led-unit-label').value = '';
+    document.getElementById('led-unit-price').value = '';
+    document.getElementById('led-vendor').value = '';
     
     this.renderLedger();
   },
@@ -2398,6 +2445,11 @@ const StoreAdmin = {
     if (item.type === 'income' && item.category === 'ขายอาหาร') {
       document.getElementById('led-menu-select').value = item.menu_id;
       document.getElementById('led-quantity').value = item.quantity;
+    } else if (item.type === 'expense') {
+      document.getElementById('led-unit-qty').value = item.quantity || '';
+      document.getElementById('led-unit-label').value = item.unit || '';
+      document.getElementById('led-unit-price').value = item.unit_price || '';
+      document.getElementById('led-vendor').value = item.vendor || '';
     }
     
     document.getElementById('led-date').value = item.date;
@@ -2419,6 +2471,10 @@ const StoreAdmin = {
     document.getElementById('led-amount').value = '';
     document.getElementById('led-desc').value = '';
     document.getElementById('led-quantity').value = '1';
+    document.getElementById('led-unit-qty').value = '';
+    document.getElementById('led-unit-label').value = '';
+    document.getElementById('led-unit-price').value = '';
+    document.getElementById('led-vendor').value = '';
     document.getElementById('led-type').value = 'expense';
     this.handleLedgerFormTypeChange();
     
@@ -2449,6 +2505,9 @@ const StoreAdmin = {
       category: 'ขายอาหาร',
       menu_name: `ยอดขายออนไลน์ (ออเดอร์ #${o.order_id.substr(-5).toUpperCase()})`,
       quantity: 1,
+      unit: 'บิล',
+      unit_price: o.total_amount,
+      vendor: 'เว็บออนไลน์',
       amount: o.total_amount,
       description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
     }));
@@ -2458,21 +2517,40 @@ const StoreAdmin = {
 
     // Construct structured CSV file
     let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel Thai support
-    const headers = ["วันที่ (Date)", "ประเภท (Type)", "หมวดหมู่ (Category)", "ชื่อเมนูอาหาร (Menu)", "จำนวนที่ขาย (Qty)", "จำนวนเงิน (Amount)", "รายละเอียด (Description)"];
+    const headers = [
+      "วันที่ (Date)", 
+      "ประเภท (Type)", 
+      "หมวดหมู่ (Category)", 
+      "ชื่อเมนูอาหาร (Menu)", 
+      "จำนวน (Qty)", 
+      "หน่วยนับ (Unit)", 
+      "ราคาต่อหน่วย (Unit Price)", 
+      "แหล่งซื้อสินค้า (Vendor)", 
+      "จำนวนเงินรวม (Total Amount)", 
+      "รายละเอียด (Description)"
+    ];
     csvContent += headers.join(",") + "\r\n";
 
     combinedLedger.forEach(item => {
       const typeStr = item.type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)';
       const menuStr = item.menu_name || '-';
-      const qtyStr = item.quantity || '-';
+      const qtyStr = item.quantity !== null && item.quantity !== undefined ? item.quantity : '-';
+      const unitStr = item.unit || '-';
+      const uPriceStr = item.unit_price !== null && item.unit_price !== undefined ? item.unit_price : '-';
+      const vendorStr = item.vendor || '-';
+      const descStr = item.description || '';
+
       const row = [
         item.date,
         `"${typeStr}"`,
         `"${item.category}"`,
         `"${menuStr}"`,
         qtyStr,
+        `"${unitStr}"`,
+        uPriceStr,
+        `"${vendorStr}"`,
         item.amount,
-        `"${item.description.replace(/"/g, '""')}"`
+        `"${descStr.replace(/"/g, '""')}"`
       ];
       csvContent += row.join(",") + "\r\n";
     });
@@ -2482,6 +2560,7 @@ const StoreAdmin = {
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     link.setAttribute("download", `kruaprakhun_ledger_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

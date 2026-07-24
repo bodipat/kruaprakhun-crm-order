@@ -766,19 +766,40 @@
                     </div>
                   </div>
 
+                  <!-- Dynamic Expense Unit Price Section -->
+                  <div id="led-expense-unit-section" style="padding: 10px; background: rgba(19,78,30,0.03); border-radius: var(--radius-sm); border: 1px dashed rgba(19,78,30,0.1); margin-bottom: 12px; display: grid; grid-template-columns: 80px 80px 1fr; gap: 8px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">จำนวน</label>
+                      <input type="number" id="led-unit-qty" min="0" step="any" placeholder="เช่น 5" oninput="StoreAdmin.calculateLedgerExpenseTotal()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">หน่วยนับ</label>
+                      <input type="text" id="led-unit-label" placeholder="กก./ขวด" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ราคา/หน่วย (฿)</label>
+                      <input type="number" id="led-unit-price" min="0" step="any" placeholder="เช่น 120" oninput="StoreAdmin.calculateLedgerExpenseTotal()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                    </div>
+                  </div>
+
                   <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">วันที่บันทึก</label>
                     <input type="date" id="led-date" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;" required>
                   </div>
 
                   <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">จำนวนเงิน (บาท)</label>
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">จำนวนเงินรวม (บาท)</label>
                     <input type="number" id="led-amount" min="1" placeholder="เช่น 250" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;" required>
+                  </div>
+
+                  <div class="form-group" id="led-vendor-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">สถานที่ซื้อ / ร้านค้า (Vendor)</label>
+                    <input type="text" id="led-vendor" placeholder="เช่น แม็คโคร, ตลาดสดอมรพันธ์, โลตัส" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
                   </div>
 
                   <div class="form-group" style="margin-bottom: 15px;">
                     <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">รายละเอียดเพิ่มเติม</label>
-                    <input type="text" id="led-desc" placeholder="เช่น ซื้อไข่ไก่ 3 แผง จากแม็คโคร" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
+                    <input type="text" id="led-desc" placeholder="เช่น ซื้อไข่ไก่ 3 แผง" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
                   </div>
 
                   <div style="display: flex; gap: 8px;">
