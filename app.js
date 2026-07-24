@@ -2176,23 +2176,33 @@ const StoreAdmin = {
     
     // Create virtual ledger items from verified orders
     const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
-    const virtualOrderItems = validOrders.map(o => ({
-      id: o.order_id,
-      date: o.order_datetime.split(' ')[0], // Date portion only
-      type: 'income',
-      category: 'ขายอาหาร',
-      menu_id: null,
-      menu_name: `ออเดอร์เว็บ (ID: ${o.order_id.substr(-5).toUpperCase()})`,
-      quantity: null,
-      amount: o.total_amount,
-      description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
-      isVirtual: true
-    }));
+    const virtualOrderItems = validOrders.map(o => {
+      const orderIdStr = o.order_id ? String(o.order_id) : '';
+      const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
+        ? o.order_datetime.split(' ')[0] 
+        : new Date().toISOString().split('T')[0];
+      return {
+        id: o.order_id || 'v_order_' + Math.random().toString(36).substr(2, 5),
+        date: orderDateStr,
+        type: 'income',
+        category: 'ขายอาหาร',
+        menu_id: null,
+        menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
+        quantity: null,
+        amount: parseFloat(o.total_amount) || 0,
+        description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
+        isVirtual: true
+      };
+    });
 
     const combinedLedger = [...manualLedger, ...virtualOrderItems];
     
-    // Sort combined by date descending
-    combinedLedger.sort((a, b) => b.date.localeCompare(a.date));
+    // Sort combined by date descending safely
+    combinedLedger.sort((a, b) => {
+      const dateA = a.date || '';
+      const dateB = b.date || '';
+      return dateB.localeCompare(dateA);
+    });
 
     // 3. Apply Filters
     const startDate = document.getElementById('filter-start-date').value;
