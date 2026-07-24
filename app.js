@@ -2078,6 +2078,7 @@ const StoreAdmin = {
     const menuSection = document.getElementById('led-menu-sales-section');
     const unitSection = document.getElementById('led-expense-unit-section');
     const vendorGroup = document.getElementById('led-vendor-group');
+    const productGroup = document.getElementById('led-product-group');
     
     // Clear and build categories options based on type
     catSelect.innerHTML = '';
@@ -2095,6 +2096,7 @@ const StoreAdmin = {
       });
       if (unitSection) unitSection.style.display = 'none';
       if (vendorGroup) vendorGroup.style.display = 'none';
+      if (productGroup) productGroup.style.display = 'none';
       this.handleLedgerCategoryChange();
     } else {
       const expenseOptions = [
@@ -2118,6 +2120,7 @@ const StoreAdmin = {
       if (menuSection) menuSection.style.display = 'none';
       if (unitSection) unitSection.style.display = 'grid';
       if (vendorGroup) vendorGroup.style.display = 'block';
+      if (productGroup) productGroup.style.display = 'block';
     }
   },
 
@@ -2315,12 +2318,17 @@ const StoreAdmin = {
           const formattedAmount = (item.type === 'income' ? '+' : '-') + itemAmt.toLocaleString() + ' ฿';
           const amountStyle = item.type === 'income' ? 'color: var(--primary); font-weight: 700; text-align: right;' : 'color: #ef4444; font-weight: 700; text-align: right;';
           
+          let displayDesc = item.description || '';
+          if (item.type === 'expense' && item.product_name) {
+            displayDesc = `<strong>${item.product_name}</strong>${item.description ? ' - ' + item.description : ''}`;
+          }
+
           tHtml += `
             <tr style="border-bottom: 1px solid rgba(19, 78, 30, 0.04); height: 45px;">
               <td style="padding: 8px;">${item.date}</td>
               <td style="padding: 8px;">${typeBadge}</td>
               <td style="padding: 8px;">${catTag}</td>
-              <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
+              <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description || ''}">${displayDesc}</td>
               <td style="padding: 8px; ${amountStyle}">${formattedAmount}</td>
               <td style="padding: 8px; text-align: center; display: flex; align-items: center; justify-content: center; height: 45px;">${editBtn}${deleteBtn}</td>
             </tr>
@@ -2352,6 +2360,7 @@ const StoreAdmin = {
     let unitPrice = null;
     let unitLabel = null;
     let vendor = null;
+    let productName = null;
     
     if (type === 'income' && category === 'ขายอาหาร') {
       const menuSelect = document.getElementById('led-menu-select');
@@ -2366,11 +2375,13 @@ const StoreAdmin = {
       const uPrice = parseFloat(document.getElementById('led-unit-price').value);
       const uLabel = document.getElementById('led-unit-label').value.trim();
       const vend = document.getElementById('led-vendor').value.trim();
+      const pName = document.getElementById('led-product-name').value.trim();
       
       quantity = !isNaN(uQty) ? uQty : null;
       unitPrice = !isNaN(uPrice) ? uPrice : null;
       unitLabel = uLabel || null;
       vendor = vend || null;
+      productName = pName || null;
       
       let detailParts = [];
       if (quantity > 0 && unitLabel) detailParts.push(`${quantity} ${unitLabel}`);
@@ -2379,7 +2390,8 @@ const StoreAdmin = {
       
       const detailsStr = detailParts.join(' ');
       if (!desc) {
-        desc = `ซื้อ${category}` + (detailsStr ? ` ${detailsStr}` : '');
+        const prod = productName || category;
+        desc = `ซื้อ${prod}` + (detailsStr ? ` ${detailsStr}` : '');
       } else {
         if (vendor && !desc.includes(vendor)) {
           desc += ` (ร้าน: ${vendor})`;
@@ -2393,6 +2405,7 @@ const StoreAdmin = {
       category,
       menu_id: menuId,
       menu_name: menuName,
+      product_name: productName,
       quantity,
       unit_price: unitPrice,
       unit: unitLabel,
@@ -2423,6 +2436,7 @@ const StoreAdmin = {
     document.getElementById('led-unit-label').value = '';
     document.getElementById('led-unit-price').value = '';
     document.getElementById('led-vendor').value = '';
+    document.getElementById('led-product-name').value = '';
     
     this.renderLedger();
   },
@@ -2446,6 +2460,7 @@ const StoreAdmin = {
       document.getElementById('led-menu-select').value = item.menu_id;
       document.getElementById('led-quantity').value = item.quantity;
     } else if (item.type === 'expense') {
+      document.getElementById('led-product-name').value = item.product_name || '';
       document.getElementById('led-unit-qty').value = item.quantity || '';
       document.getElementById('led-unit-label').value = item.unit || '';
       document.getElementById('led-unit-price').value = item.unit_price || '';
@@ -2475,6 +2490,7 @@ const StoreAdmin = {
     document.getElementById('led-unit-label').value = '';
     document.getElementById('led-unit-price').value = '';
     document.getElementById('led-vendor').value = '';
+    document.getElementById('led-product-name').value = '';
     document.getElementById('led-type').value = 'expense';
     this.handleLedgerFormTypeChange();
     
@@ -2521,7 +2537,7 @@ const StoreAdmin = {
       "วันที่ (Date)", 
       "ประเภท (Type)", 
       "หมวดหมู่ (Category)", 
-      "ชื่อเมนูอาหาร (Menu)", 
+      "ชื่อสินค้า/เมนู (Item Name)", 
       "จำนวน (Qty)", 
       "หน่วยนับ (Unit)", 
       "ราคาต่อหน่วย (Unit Price)", 
@@ -2533,7 +2549,7 @@ const StoreAdmin = {
 
     combinedLedger.forEach(item => {
       const typeStr = item.type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)';
-      const menuStr = item.menu_name || '-';
+      const itemName = item.type === 'expense' ? (item.product_name || item.category) : (item.menu_name || '-');
       const qtyStr = item.quantity !== null && item.quantity !== undefined ? item.quantity : '-';
       const unitStr = item.unit || '-';
       const uPriceStr = item.unit_price !== null && item.unit_price !== undefined ? item.unit_price : '-';
@@ -2544,7 +2560,7 @@ const StoreAdmin = {
         item.date,
         `"${typeStr}"`,
         `"${item.category}"`,
-        `"${menuStr}"`,
+        `"${itemName}"`,
         qtyStr,
         `"${unitStr}"`,
         uPriceStr,
