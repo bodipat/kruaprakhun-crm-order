@@ -781,9 +781,14 @@
                     <input type="text" id="led-desc" placeholder="เช่น ซื้อไข่ไก่ 3 แผง จากแม็คโคร" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
                   </div>
 
-                  <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-family: var(--font-prompt); font-size: 0.85rem; font-weight: 600;">
-                    💾 บันทึกรายการ
-                  </button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="submit" id="led-submit-btn" class="btn btn-primary" style="flex-grow: 1; padding: 10px; font-family: var(--font-prompt); font-size: 0.85rem; font-weight: 600;">
+                      💾 บันทึกรายการ
+                    </button>
+                    <button type="button" id="led-cancel-btn" onclick="StoreAdmin.cancelLedgerEdit()" class="btn btn-secondary" style="display: none; padding: 10px; font-family: var(--font-prompt); font-size: 0.85rem;">
+                      ยกเลิก
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>

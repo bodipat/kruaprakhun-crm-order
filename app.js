@@ -250,7 +250,8 @@ const state = {
     admin: false,
     kitchen: false,
     marketing: false
-  }
+  },
+  editingLedgerId: null
 };
 
 // Load session auth for staff roles if exists
@@ -2289,6 +2290,10 @@ const StoreAdmin = {
             : `<span class="ledger-badge-expense">รายจ่าย</span>`;
              
           const catTag = `<span class="ledger-cat-tag">${item.category}</span>`;
+          const editBtn = item.isVirtual 
+            ? '' 
+            : `<button class="btn-action btn-edit" onclick="StoreAdmin.editLedgerItem('${item.id}')" style="color: var(--primary); background: none; border: none; cursor: pointer; font-size: 0.95rem; margin-right: 8px;">✏️</button>`;
+            
           const deleteBtn = item.isVirtual 
             ? `<span style="color: var(--text-muted); font-size: 0.7rem; font-style: italic;">ออเดอร์เว็บ</span>`
             : `<button class="btn-action btn-delete" onclick="StoreAdmin.deleteLedgerItem('${item.id}')" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;">×</button>`;
@@ -2304,7 +2309,7 @@ const StoreAdmin = {
               <td style="padding: 8px;">${catTag}</td>
               <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
               <td style="padding: 8px; ${amountStyle}">${formattedAmount}</td>
-              <td style="padding: 8px; text-align: center;">${deleteBtn}</td>
+              <td style="padding: 8px; text-align: center; display: flex; align-items: center; justify-content: center; height: 45px;">${editBtn}${deleteBtn}</td>
             </tr>
           `;
         });
@@ -2342,9 +2347,7 @@ const StoreAdmin = {
       }
     }
     
-    const id = 'led_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const item = {
-      id,
+    const itemData = {
       date,
       type,
       category,
@@ -2354,10 +2357,22 @@ const StoreAdmin = {
       amount,
       description: desc || `รายการแมนนวล ${category}`
     };
+
+    if (state.editingLedgerId) {
+      // Update existing item
+      db.update('ledger', state.editingLedgerId, itemData);
+      
+      // Reset Edit state
+      state.editingLedgerId = null;
+      document.getElementById('led-submit-btn').innerHTML = '💾 บันทึกรายการ';
+      document.getElementById('led-cancel-btn').style.display = 'none';
+    } else {
+      // Insert new item
+      const id = 'led_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      db.insert('ledger', { id, ...itemData });
+    }
     
-    db.insert('ledger', item);
-    
-    // Clear and re-render
+    // Clear form and re-render
     document.getElementById('led-amount').value = '';
     document.getElementById('led-desc').value = '';
     document.getElementById('led-quantity').value = '1';
@@ -2365,8 +2380,58 @@ const StoreAdmin = {
     this.renderLedger();
   },
 
+  editLedgerItem(id) {
+    const ledger = db.get('ledger') || [];
+    const item = ledger.find(it => it.id === id);
+    if (!item) return;
+
+    // Set edit state
+    state.editingLedgerId = id;
+    
+    // Populate form fields
+    document.getElementById('led-type').value = item.type;
+    this.handleLedgerFormTypeChange();
+    
+    document.getElementById('led-category').value = item.category;
+    this.handleLedgerCategoryChange();
+    
+    if (item.type === 'income' && item.category === 'ขายอาหาร') {
+      document.getElementById('led-menu-select').value = item.menu_id;
+      document.getElementById('led-quantity').value = item.quantity;
+    }
+    
+    document.getElementById('led-date').value = item.date;
+    document.getElementById('led-amount').value = item.amount;
+    document.getElementById('led-desc').value = item.description;
+
+    // Change button styles
+    document.getElementById('led-submit-btn').innerHTML = '💾 บันทึกการแก้ไข';
+    document.getElementById('led-cancel-btn').style.display = 'block';
+
+    // Scroll form into view smoothly
+    document.getElementById('ledger-entry-form').scrollIntoView({ behavior: 'smooth' });
+  },
+
+  cancelLedgerEdit() {
+    state.editingLedgerId = null;
+    
+    // Clear and restore form
+    document.getElementById('led-amount').value = '';
+    document.getElementById('led-desc').value = '';
+    document.getElementById('led-quantity').value = '1';
+    document.getElementById('led-type').value = 'expense';
+    this.handleLedgerFormTypeChange();
+    
+    document.getElementById('led-submit-btn').innerHTML = '💾 บันทึกรายการ';
+    document.getElementById('led-cancel-btn').style.display = 'none';
+  },
+
   deleteLedgerItem(id) {
     if (confirm('คุณต้องการลบรายการบัญชีนี้ใช่หรือไม่?')) {
+      // If we are currently editing the deleted item, cancel editing first
+      if (state.editingLedgerId === id) {
+        this.cancelLedgerEdit();
+      }
       db.delete('ledger', id);
       this.renderLedger();
     }
