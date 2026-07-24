@@ -254,6 +254,29 @@ const state = {
   editingLedgerId: null
 };
 
+// Utility to format date string from YYYY-MM-DD or ISO string to DD/MM/YYYY
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return '-';
+  let dateOnly = dateStr;
+  if (typeof dateStr === 'string') {
+    dateOnly = dateStr.split('T')[0].split(' ')[0];
+  } else if (dateStr instanceof Date) {
+    const y = dateStr.getFullYear();
+    const m = String(dateStr.getMonth() + 1).padStart(2, '0');
+    const d = String(dateStr.getDate()).padStart(2, '0');
+    return `${d}/${m}/${y}`;
+  }
+  
+  const parts = String(dateOnly).split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+}
+
 // Load session auth for staff roles if exists
 try {
   const storedAuth = sessionStorage.getItem('kp_staff_auth');
@@ -1748,7 +1771,7 @@ const StoreAdmin = {
       timelineHtml = '<div style="color: var(--text-muted); font-size: 0.8rem;">ไม่พบประวัติการสั่งซื้อ</div>';
     } else {
       custOrders.forEach(o => {
-        const time = new Date(o.order_datetime).toLocaleDateString('th-TH') + ' ' + new Date(o.order_datetime).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+        const time = formatDateDisplay(o.order_datetime) + ' ' + new Date(o.order_datetime).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
         const itemsText = o.items.map(i => `${i.menu_name} x ${i.quantity}`).join(', ');
         
         timelineHtml += `
@@ -2026,9 +2049,10 @@ const StoreAdmin = {
 
       const orders = db.get('orders');
       orders.forEach(o => {
+        const orderTimeStr = o.order_datetime ? formatDateDisplay(o.order_datetime) + ' ' + new Date(o.order_datetime).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}) : '-';
         const row = [
           o.id,
-          o.order_datetime,
+          `"${orderTimeStr}"`,
           `"${o.customer_name}"`,
           `"${o.customer_phone}"`,
           o.subtotal,
@@ -2054,7 +2078,7 @@ const StoreAdmin = {
           `"${c.name}"`,
           `"${c.phone}"`,
           `"${c.line_display_name || '-'}"`,
-          c.created_at,
+          formatDateDisplay(c.created_at),
           c.first_source || 'Organic',
           c.latest_source || 'Organic',
           c.consent_marketing ? "YES" : "NO"
@@ -2326,7 +2350,7 @@ const StoreAdmin = {
 
           tHtml += `
             <tr style="border-bottom: 1px solid rgba(19, 78, 30, 0.04); height: 45px;">
-              <td style="padding: 8px;">${item.date}</td>
+              <td style="padding: 8px;">${formatDateDisplay(item.date)}</td>
               <td style="padding: 8px;">${typeBadge}</td>
               <td style="padding: 8px;">${catTag}</td>
               <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description || ''}">${displayDesc}</td>
@@ -2558,7 +2582,7 @@ const StoreAdmin = {
       const descStr = item.description || '';
 
       const row = [
-        item.date,
+        formatDateDisplay(item.date),
         `"${typeStr}"`,
         `"${item.category}"`,
         `"${itemName}"`,
