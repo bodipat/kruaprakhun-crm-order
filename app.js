@@ -38,7 +38,7 @@ class Database {
 
   init() {
     const dbVersion = localStorage.getItem(this.prefix + 'db_version');
-    const targetVersion = '1.3';
+    const targetVersion = '1.4';
 
     const storedMenus = localStorage.getItem(this.prefix + 'menus');
     const needsSeed = !storedMenus || JSON.parse(storedMenus).length < 30 || dbVersion !== targetVersion;
@@ -54,6 +54,7 @@ class Database {
         this.saveCache('sources', seed.MOCK_SOURCES);
         this.saveCache('customers', seed.MOCK_CUSTOMERS);
         this.saveCache('orders', seed.MOCK_ORDERS);
+        this.saveCache('ledger', seed.MOCK_LEDGER);
         localStorage.setItem(this.prefix + 'db_version', targetVersion);
         console.log('Local cache seeded/reset successfully with real menu items.');
       } else {
@@ -68,7 +69,7 @@ class Database {
 
   async syncWithFirebase() {
     try {
-      const collections = ['categories', 'menus', 'toppings', 'options', 'campaigns', 'sources', 'customers', 'orders', 'settings'];
+      const collections = ['categories', 'menus', 'toppings', 'options', 'campaigns', 'sources', 'customers', 'orders', 'settings', 'ledger'];
       
       // 1. One-time initial load of all collections to local cache
       for (const col of collections) {
@@ -144,6 +145,16 @@ class Database {
           } else if (state.activeRole === 'admin') {
             StoreAdmin.loadSettings();
           }
+        }
+      });
+
+      // Listen to Ledger
+      this.db.collection('ledger').onSnapshot(snapshot => {
+        const ledger = snapshot.docs.map(doc => doc.data());
+        this.saveCache('ledger', ledger);
+        console.log('Firebase: Live Ledger updated.');
+        if (state.activeRole === 'admin') {
+          StoreAdmin.renderLedger();
         }
       });
 
@@ -2055,6 +2066,336 @@ const StoreAdmin = {
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
+
+  handleLedgerFormTypeChange() {
+    const type = document.getElementById('led-type').value;
+    const catSelect = document.getElementById('led-category');
+    
+    // Clear and build categories options based on type
+    catSelect.innerHTML = '';
+    
+    if (type === 'income') {
+      const incomeOptions = [
+        { val: 'ขายอาหาร', text: 'ขายอาหาร' },
+        { val: 'อื่นๆ', text: 'อื่นๆ' }
+      ];
+      incomeOptions.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.val;
+        el.textContent = opt.text;
+        catSelect.appendChild(el);
+      });
+      // Show menu sales section if category is 'ขายอาหาร'
+      this.handleLedgerCategoryChange();
+    } else {
+      const expenseOptions = [
+        { val: 'เนื้อสัตว์', text: 'เนื้อสัตว์' },
+        { val: 'ผัก', text: 'ผัก' },
+        { val: 'เครื่องปรุง', text: 'เครื่องปรุง' },
+        { val: 'Packaging', text: 'Packaging (บรรจุภัณฑ์)' },
+        { val: 'ค่าขนส่ง', text: 'ค่าขนส่ง' },
+        { val: 'ค่าจ้าง', text: 'ค่าจ้าง' },
+        { val: 'ค่าเช่า', text: 'ค่าเช่า' },
+        { val: 'ค่าน้ำ', text: 'ค่าน้ำ' },
+        { val: 'ค่าไฟ', text: 'ค่าไฟ' },
+        { val: 'อื่นๆ', text: 'อื่นๆ' }
+      ];
+      expenseOptions.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.val;
+        el.textContent = opt.text;
+        catSelect.appendChild(el);
+      });
+      // Hide menu sales section
+      document.getElementById('led-menu-sales-section').style.display = 'none';
+    }
+  },
+
+  handleLedgerCategoryChange() {
+    const type = document.getElementById('led-type').value;
+    const category = document.getElementById('led-category').value;
+    const menuSection = document.getElementById('led-menu-sales-section');
+    
+    if (type === 'income' && category === 'ขายอาหาร') {
+      menuSection.style.display = 'block';
+      // Populate menu dropdown if empty
+      const menuSelect = document.getElementById('led-menu-select');
+      if (menuSelect.options.length === 0) {
+        const menus = db.get('menus') || [];
+        menus.forEach(m => {
+          const el = document.createElement('option');
+          el.value = m.id;
+          el.textContent = m.name;
+          el.dataset.price = m.base_price;
+          menuSelect.appendChild(el);
+        });
+      }
+      this.handleLedgerMenuSelectChange();
+    } else {
+      menuSection.style.display = 'none';
+    }
+  },
+
+  handleLedgerMenuSelectChange() {
+    const menuSelect = document.getElementById('led-menu-select');
+    const selectedOption = menuSelect.options[menuSelect.selectedIndex];
+    if (selectedOption) {
+      const price = parseFloat(selectedOption.dataset.price) || 0;
+      const qty = parseInt(document.getElementById('led-quantity').value) || 1;
+      document.getElementById('led-amount').value = price * qty;
+    }
+  },
+
+  renderLedger() {
+    // 1. Initial defaults
+    const dateInput = document.getElementById('led-date');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Populate dropdown in form if empty
+    const menuSelect = document.getElementById('led-menu-select');
+    if (menuSelect && menuSelect.options.length === 0) {
+      const menus = db.get('menus') || [];
+      menus.forEach(m => {
+        const el = document.createElement('option');
+        el.value = m.id;
+        el.textContent = m.name;
+        el.dataset.price = m.base_price;
+        menuSelect.appendChild(el);
+      });
+    }
+
+    // 2. Fetch data sources
+    const orders = db.get('orders') || [];
+    const manualLedger = db.get('ledger') || [];
+    
+    // Create virtual ledger items from verified orders
+    const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
+    const virtualOrderItems = validOrders.map(o => ({
+      id: o.order_id,
+      date: o.order_datetime.split(' ')[0], // Date portion only
+      type: 'income',
+      category: 'ขายอาหาร',
+      menu_id: null,
+      menu_name: `ออเดอร์เว็บ (ID: ${o.order_id.substr(-5).toUpperCase()})`,
+      quantity: null,
+      amount: o.total_amount,
+      description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
+      isVirtual: true
+    }));
+
+    const combinedLedger = [...manualLedger, ...virtualOrderItems];
+    
+    // Sort combined by date descending
+    combinedLedger.sort((a, b) => b.date.localeCompare(a.date));
+
+    // 3. Apply Filters
+    const startDate = document.getElementById('filter-start-date').value;
+    const endDate = document.getElementById('filter-end-date').value;
+    const filterType = document.getElementById('filter-type').value;
+    const filterCategory = document.getElementById('filter-category').value;
+
+    const filteredLedger = combinedLedger.filter(item => {
+      if (startDate && item.date < startDate) return false;
+      if (endDate && item.date > endDate) return false;
+      if (filterType !== 'all' && item.type !== filterType) return false;
+      if (filterCategory !== 'all' && item.category !== filterCategory) return false;
+      return true;
+    });
+
+    // 4. Calculate Summaries on filtered dataset to reflect date/category selections
+    const totalRevenue = filteredLedger.filter(i => i.type === 'income').reduce((acc, i) => acc + i.amount, 0);
+    const totalExpenses = filteredLedger.filter(i => i.type === 'expense').reduce((acc, i) => acc + i.amount, 0);
+    const netProfit = totalRevenue - totalExpenses;
+
+    document.getElementById('ledger-revenue-val').textContent = totalRevenue.toLocaleString() + ' ฿';
+    document.getElementById('ledger-expenses-val').textContent = totalExpenses.toLocaleString() + ' ฿';
+    
+    const profitEl = document.getElementById('ledger-profit-val');
+    profitEl.textContent = netProfit.toLocaleString() + ' ฿';
+    if (netProfit >= 0) {
+      profitEl.style.color = 'var(--primary)';
+    } else {
+      profitEl.style.color = '#ef4444';
+    }
+
+    // 5. Calculate Top 5 Best-Sellers (Unfiltered / Overall logic to match paper requirements)
+    const menuSales = {};
+    
+    // Accumulate manual menu sales
+    combinedLedger.forEach(item => {
+      if (item.type === 'income' && item.category === 'ขายอาหาร' && item.quantity) {
+        const name = item.menu_name || 'ไม่ระบุชื่อเมนู';
+        menuSales[name] = (menuSales[name] || 0) + item.quantity;
+      }
+    });
+    
+    // Accumulate online sales
+    validOrders.forEach(o => {
+      if (o.items) {
+        o.items.forEach(it => {
+          const name = it.menu_name;
+          menuSales[name] = (menuSales[name] || 0) + it.quantity;
+        });
+      }
+    });
+
+    const sortedBestSellers = Object.entries(menuSales)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    let bHtml = '';
+    if (sortedBestSellers.length === 0) {
+      bHtml = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; padding: 10px 0;">ไม่มีข้อมูลยอดขาย</div>';
+    } else {
+      sortedBestSellers.forEach(([name, qty], index) => {
+        bHtml += `
+          <div class="bestseller-item">
+            <span class="bestseller-rank">#${index + 1}</span>
+            <span class="bestseller-name">${name}</span>
+            <span class="bestseller-qty">${qty} จาน</span>
+          </div>
+        `;
+      });
+    }
+    document.getElementById('ledger-bestsellers-list').innerHTML = bHtml;
+
+    // 6. Render table rows
+    let tHtml = '';
+    if (filteredLedger.length === 0) {
+      tHtml = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">ไม่พบรายการในระบบ</td></tr>';
+    } else {
+      filteredLedger.forEach(item => {
+        const typeBadge = item.type === 'income' 
+          ? `<span class="ledger-badge-income">รายรับ</span>` 
+          : `<span class="ledger-badge-expense">รายจ่าย</span>`;
+           
+        const catTag = `<span class="ledger-cat-tag">${item.category}</span>`;
+        const deleteBtn = item.isVirtual 
+          ? `<span style="color: var(--text-muted); font-size: 0.7rem; font-style: italic;">ออเดอร์เว็บ</span>`
+          : `<button class="btn-action btn-delete" onclick="StoreAdmin.deleteLedgerItem('${item.id}')" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;">×</button>`;
+           
+        const formattedAmount = (item.type === 'income' ? '+' : '-') + item.amount.toLocaleString() + ' ฿';
+        const amountStyle = item.type === 'income' ? 'color: var(--primary); font-weight: 700; text-align: right;' : 'color: #ef4444; font-weight: 700; text-align: right;';
+        
+        tHtml += `
+          <tr style="border-bottom: 1px solid rgba(19, 78, 30, 0.04); height: 45px;">
+            <td style="padding: 8px;">${item.date}</td>
+            <td style="padding: 8px;">${typeBadge}</td>
+            <td style="padding: 8px;">${catTag}</td>
+            <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
+            <td style="padding: 8px; ${amountStyle}">${formattedAmount}</td>
+            <td style="padding: 8px; text-align: center;">${deleteBtn}</td>
+          </tr>
+        `;
+      });
+    }
+    document.getElementById('ledger-table-body').innerHTML = tHtml;
+  },
+
+  addLedgerItem(event) {
+    if (event) event.preventDefault();
+    
+    const type = document.getElementById('led-type').value;
+    const category = document.getElementById('led-category').value;
+    const date = document.getElementById('led-date').value;
+    const amount = parseFloat(document.getElementById('led-amount').value) || 0;
+    let desc = document.getElementById('led-desc').value.trim();
+    
+    let menuId = null;
+    let menuName = null;
+    let quantity = null;
+    
+    if (type === 'income' && category === 'ขายอาหาร') {
+      const menuSelect = document.getElementById('led-menu-select');
+      menuId = menuSelect.value;
+      menuName = menuSelect.options[menuSelect.selectedIndex].text;
+      quantity = parseInt(document.getElementById('led-quantity').value) || 1;
+      if (!desc) {
+        desc = `ยอดขายแมนนวล: ${menuName} x ${quantity}`;
+      }
+    }
+    
+    const id = 'led_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const item = {
+      id,
+      date,
+      type,
+      category,
+      menu_id: menuId,
+      menu_name: menuName,
+      quantity,
+      amount,
+      description: desc || `รายการแมนนวล ${category}`
+    };
+    
+    db.insert('ledger', item);
+    
+    // Clear and re-render
+    document.getElementById('led-amount').value = '';
+    document.getElementById('led-desc').value = '';
+    document.getElementById('led-quantity').value = '1';
+    
+    this.renderLedger();
+  },
+
+  deleteLedgerItem(id) {
+    if (confirm('คุณต้องการลบรายการบัญชีนี้ใช่หรือไม่?')) {
+      db.delete('ledger', id);
+      this.renderLedger();
+    }
+  },
+
+  exportLedgerCSV() {
+    const orders = db.get('orders') || [];
+    const manualLedger = db.get('ledger') || [];
+    
+    // Create virtual ledger items from verified orders
+    const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
+    const virtualOrderItems = validOrders.map(o => ({
+      date: o.order_datetime.split(' ')[0],
+      type: 'income',
+      category: 'ขายอาหาร',
+      menu_name: `ยอดขายออนไลน์ (ออเดอร์ #${o.order_id.substr(-5).toUpperCase()})`,
+      quantity: 1,
+      amount: o.total_amount,
+      description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
+    }));
+
+    const combinedLedger = [...manualLedger, ...virtualOrderItems];
+    combinedLedger.sort((a, b) => b.date.localeCompare(a.date));
+
+    // Construct structured CSV file
+    let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel Thai support
+    const headers = ["วันที่ (Date)", "ประเภท (Type)", "หมวดหมู่ (Category)", "ชื่อเมนูอาหาร (Menu)", "จำนวนที่ขาย (Qty)", "จำนวนเงิน (Amount)", "รายละเอียด (Description)"];
+    csvContent += headers.join(",") + "\r\n";
+
+    combinedLedger.forEach(item => {
+      const typeStr = item.type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)';
+      const menuStr = item.menu_name || '-';
+      const qtyStr = item.quantity || '-';
+      const row = [
+        item.date,
+        `"${typeStr}"`,
+        `"${item.category}"`,
+        `"${menuStr}"`,
+        qtyStr,
+        item.amount,
+        `"${item.description.replace(/"/g, '""')}"`
+      ];
+      csvContent += row.join(",") + "\r\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `kruaprakhun_ledger_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

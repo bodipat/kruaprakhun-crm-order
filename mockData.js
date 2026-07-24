@@ -752,6 +752,75 @@ const MOCK_ORDERS = [
   }
 ];
 
+const MOCK_LEDGER = [
+  {
+    id: 'led_1',
+    date: '2026-07-20',
+    type: 'expense',
+    category: 'เนื้อสัตว์',
+    menu_id: null,
+    menu_name: null,
+    quantity: null,
+    amount: 1250,
+    description: 'ซื้ออกไก่ 10 กก. และเนื้อหมูสับ 5 กก. จากตลาดสด'
+  },
+  {
+    id: 'led_2',
+    date: '2026-07-20',
+    type: 'expense',
+    category: 'ผัก',
+    menu_id: null,
+    menu_name: null,
+    quantity: null,
+    amount: 320,
+    description: 'ซื้อใบกะเพรา พริกขี้หนู และกระเทียม'
+  },
+  {
+    id: 'led_3',
+    date: '2026-07-21',
+    type: 'expense',
+    category: 'Packaging',
+    menu_id: null,
+    menu_name: null,
+    quantity: null,
+    amount: 450,
+    description: 'ซื้อกล่องอาหารกระดาษย่อยสลายได้ 100 ใบ'
+  },
+  {
+    id: 'led_4',
+    date: '2026-07-21',
+    type: 'income',
+    category: 'ขายอาหาร',
+    menu_id: 'menu_02',
+    menu_name: 'ข้าวกะเพราไก่',
+    quantity: 12,
+    amount: 480,
+    description: 'บันทึกยอดขาย ข้าวกะเพราไก่ จำนวน 12 จาน (จากสมุดจด)'
+  },
+  {
+    id: 'led_5',
+    date: '2026-07-22',
+    type: 'income',
+    category: 'ขายอาหาร',
+    menu_id: 'menu_05',
+    menu_name: 'กะเพราหมูสับ',
+    quantity: 15,
+    amount: 750,
+    description: 'บันทึกยอดขาย กะเพราหมูสับ จำนวน 15 จาน (จากสมุดจด)'
+  },
+  {
+    id: 'led_6',
+    date: '2026-07-22',
+    type: 'expense',
+    category: 'ค่าเช่า',
+    menu_id: null,
+    menu_name: null,
+    quantity: null,
+    amount: 2500,
+    description: 'ค่าเช่าแผงร้านอาหารรายสัปดาห์'
+  }
+];
+
 // Export to window object for availability in browser script
 window.KruaPrakhunSeedData = {
   MOCK_CATEGORIES,
@@ -761,5 +830,6 @@ window.KruaPrakhunSeedData = {
   MOCK_CAMPAIGNS,
   MOCK_SOURCES,
   MOCK_CUSTOMERS,
-  MOCK_ORDERS
+  MOCK_ORDERS,
+  MOCK_LEDGER
 };

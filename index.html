@@ -499,6 +499,14 @@
             StoreAdmin.loadSettings();
           ">⚙️ ตั้งค่าเว็บไซต์</li>
           
+          <li class="admin-menu-item" data-tab="ledger" onclick="
+            document.querySelectorAll('.admin-tab-pane').forEach(p=>p.style.display='none');
+            document.getElementById('admin-pane-ledger').style.display='block';
+            document.querySelectorAll('.admin-menu-item').forEach(i=>i.classList.remove('active'));
+            this.classList.add('active');
+            StoreAdmin.renderLedger();
+          ">💰 บัญชีรายรับ-รายจ่าย</li>
+          
           <li class="admin-menu-item" style="color: var(--danger); margin-top: 15px; border-top: 1px solid rgba(19, 78, 30, 0.08); padding-top: 10px;" onclick="logoutStaff()">🚪 ออกจากระบบ</li>
         </ul>
       </aside>
@@ -672,6 +680,187 @@
             </button>
           </div>
         </div>
+
+        <!-- Store Ledger Tab Pane -->
+        <div class="admin-tab-pane" id="admin-pane-ledger" style="display:none;">
+          <!-- 1. Ledger Summary Widgets -->
+          <div class="stats-row" style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+            <div class="stat-card" style="border-left: 4px solid var(--accent); background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+              <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">รายรับรวมทั้งหมด</div>
+              <div class="stat-value" id="ledger-revenue-val" style="font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 5px;">0 ฿</div>
+              <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* รวมยอดขายออนไลน์ + รายรับที่บันทึกเอง</div>
+            </div>
+            
+            <div class="stat-card" style="border-left: 4px solid #ef4444; background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+              <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">รายจ่ายรวมทั้งหมด</div>
+              <div class="stat-value" id="ledger-expenses-val" style="font-size: 1.5rem; font-weight: 800; color: #ef4444; margin-top: 5px;">0 ฿</div>
+              <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* ค่าวัตถุดิบ บรรจุภัณฑ์ และสาธารณูปโภค</div>
+            </div>
+            
+            <div class="stat-card" style="border-left: 4px solid var(--primary); background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+              <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">กำไรสุทธิ</div>
+              <div class="stat-value" id="ledger-profit-val" style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-top: 5px;">0 ฿</div>
+              <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* ยอดเงินคงเหลือหลังจากหักรายจ่ายแล้ว</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start;">
+            <!-- Left Column: Form & Best-Sellers -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              
+              <!-- Best Sellers Card -->
+              <div class="glass-panel" style="padding: 15px; border-radius: var(--radius-md); background: white;">
+                <h4 style="font-family: var(--font-prompt); font-size: 0.95rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span>🔥</span> อันดับเมนูขายดีประจำร้าน
+                </h4>
+                <div id="ledger-bestsellers-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Renders dynamic ranking list -->
+                  <div style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; padding: 10px 0;">ไม่มีข้อมูลยอดขาย</div>
+                </div>
+              </div>
+
+              <!-- Quick Entry Form -->
+              <div class="glass-panel" style="padding: 15px; border-radius: var(--radius-md); background: white;">
+                <h4 style="font-family: var(--font-prompt); font-size: 0.95rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span>📝</span> บันทึกรายการรายรับ-รายจ่าย
+                </h4>
+                
+                <form id="ledger-entry-form" onsubmit="StoreAdmin.addLedgerItem(event)">
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">ประเภทรายการ</label>
+                    <select id="led-type" onchange="StoreAdmin.handleLedgerFormTypeChange()" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem; outline: none; background: white;" required>
+                      <option value="expense">Expense (รายจ่าย)</option>
+                      <option value="income">Income (รายรับ)</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">หมวดหมู่รายการ</label>
+                    <select id="led-category" onchange="StoreAdmin.handleLedgerCategoryChange()" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem; outline: none; background: white;" required>
+                      <!-- Expense categories by default -->
+                      <option value="เนื้อสัตว์">เนื้อสัตว์</option>
+                      <option value="ผัก">ผัก</option>
+                      <option value="เครื่องปรุง">เครื่องปรุง</option>
+                      <option value="Packaging">Packaging (บรรจุภัณฑ์)</option>
+                      <option value="ค่าขนส่ง">ค่าขนส่ง</option>
+                      <option value="ค่าจ้าง">ค่าจ้าง</option>
+                      <option value="ค่าเช่า">ค่าเช่า</option>
+                      <option value="ค่าน้ำ">ค่าน้ำ</option>
+                      <option value="ค่าไฟ">ค่าไฟ</option>
+                      <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                  </div>
+
+                  <!-- Dynamic Menu Selection for Food Sales (Income only) -->
+                  <div id="led-menu-sales-section" style="display: none; padding: 10px; background: rgba(19,78,30,0.03); border-radius: var(--radius-sm); border: 1px dashed rgba(19,78,30,0.1); margin-bottom: 12px;">
+                    <div class="form-group" style="margin-bottom: 8px;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">เลือกเมนูอาหารที่ขาย</label>
+                      <select id="led-menu-select" onchange="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem; outline: none; background: white;">
+                        <!-- Populate dynamically -->
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">จำนวนจาน (ยอดขายแมนนวล)</label>
+                      <input type="number" id="led-quantity" min="1" value="1" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">วันที่บันทึก</label>
+                    <input type="date" id="led-date" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;" required>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">จำนวนเงิน (บาท)</label>
+                    <input type="number" id="led-amount" min="1" placeholder="เช่น 250" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;" required>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">รายละเอียดเพิ่มเติม</label>
+                    <input type="text" id="led-desc" placeholder="เช่น ซื้อไข่ไก่ 3 แผง จากแม็คโคร" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-family: var(--font-prompt); font-size: 0.85rem; font-weight: 600;">
+                    💾 บันทึกรายการ
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Right Column: Filters and Table -->
+            <div class="glass-panel" style="padding: 15px; border-radius: var(--radius-md); background: white;">
+              <!-- Ledger Filters Bar -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) 100px; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(19,78,30,0.06); align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">เริ่มวันที่</label>
+                  <input type="date" id="filter-start-date" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">สิ้นสุดวันที่</label>
+                  <input type="date" id="filter-end-date" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ประเภท</label>
+                  <select id="filter-type" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem; outline: none; background: white;">
+                    <option value="all">ทั้งหมด</option>
+                    <option value="income">Income (รายรับ)</option>
+                    <option value="expense">Expense (รายจ่าย)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">หมวดหมู่</label>
+                  <select id="filter-category" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem; outline: none; background: white;">
+                    <option value="all">ทั้งหมด</option>
+                    <!-- Incomes -->
+                    <option value="ขายอาหาร">ขายอาหาร</option>
+                    <!-- Expenses -->
+                    <option value="เนื้อสัตว์">เนื้อสัตว์</option>
+                    <option value="ผัก">ผัก</option>
+                    <option value="เครื่องปรุง">เครื่องปรุง</option>
+                    <option value="Packaging">Packaging</option>
+                    <option value="ค่าขนส่ง">ค่าขนส่ง</option>
+                    <option value="ค่าจ้าง">ค่าจ้าง</option>
+                    <option value="ค่าเช่า">ค่าเช่า</option>
+                    <option value="ค่าน้ำ">ค่าน้ำ</option>
+                    <option value="ค่าไฟ">ค่าไฟ</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" onclick="StoreAdmin.renderLedger()" style="padding: 7px 10px; font-family: var(--font-prompt); font-size: 0.75rem; height: 32px;">
+                  🔍 กรองข้อมูล
+                </button>
+              </div>
+
+              <!-- Transactions Table Wrapper -->
+              <div style="overflow-x: auto; max-height: 500px;">
+                <table class="admin-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid rgba(19, 78, 30, 0.08); background: rgba(19,78,30,0.02);">
+                      <th style="padding: 10px 8px; font-weight: 700;">วันที่</th>
+                      <th style="padding: 10px 8px; font-weight: 700;">ประเภท</th>
+                      <th style="padding: 10px 8px; font-weight: 700;">หมวดหมู่</th>
+                      <th style="padding: 10px 8px; font-weight: 700;">รายละเอียดรายการ</th>
+                      <th style="padding: 10px 8px; font-weight: 700; text-align: right;">จำนวนเงิน</th>
+                      <th style="padding: 10px 8px; font-weight: 700; text-align: center;">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ledger-table-body">
+                    <!-- Dynamic rendering -->
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Ledger Export Action Bar -->
+              <div style="display: flex; justify-content: flex-end; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(19,78,30,0.06);">
+                <button class="btn btn-secondary" onclick="StoreAdmin.exportLedgerCSV()" style="padding: 8px 15px; font-family: var(--font-prompt); font-size: 0.8rem; display: flex; align-items: center; gap: 6px; border: 1px solid var(--primary); color: var(--primary);">
+                  📥 ส่งออกไฟล์รายงานบัญชี (CSV)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
       </div>
     </div>

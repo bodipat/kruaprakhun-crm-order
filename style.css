@@ -1737,3 +1737,83 @@ body {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+
+/* ==========================================
+     6. STORE LEDGER STYLES
+   ========================================== */
+.ledger-badge-income {
+  background: rgba(19, 78, 30, 0.08);
+  color: var(--primary);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-block;
+  text-align: center;
+}
+
+.ledger-badge-expense {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-block;
+  text-align: center;
+}
+
+.ledger-cat-tag {
+  background: rgba(19, 78, 30, 0.04);
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* Best-Sellers widget styles */
+.bestseller-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(19, 78, 30, 0.02);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+  font-size: 0.78rem;
+  transition: var(--transition);
+}
+
+.bestseller-item:hover {
+  background: rgba(19, 78, 30, 0.05);
+  transform: translateX(2px);
+}
+
+.bestseller-rank {
+  font-weight: 800;
+  color: var(--accent);
+  min-width: 20px;
+  font-size: 0.85rem;
+}
+
+.bestseller-name {
+  flex-grow: 1;
+  font-weight: 600;
+  margin-left: 5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.bestseller-qty {
+  font-weight: 700;
+  color: var(--primary);
+  background: rgba(19, 78, 30, 0.06);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
