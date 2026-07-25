@@ -3358,7 +3358,9 @@ const POSApp = {
         menu_name: b.name,
         quantity: b.quantity,
         price: b.price,
-        notes: notes
+        selected_options: {},
+        selected_toppings: [],
+        item_note: notes
       };
     });
 
@@ -3369,7 +3371,7 @@ const POSApp = {
       customer_phone: '-',
       items: orderItems,
       total_amount: grandTotal,
-      order_status: 'New',
+      order_status: 'Paid / Waiting Verify',
       payment_status: 'Paid',
       payment_method: this.selectedPayment,
       order_datetime: new Date().toISOString().replace('T', ' ').substr(0, 19),
@@ -3515,6 +3517,9 @@ const KitchenApp = {
     this.renderBoard();
     
     if (state.activeRole === 'admin') StoreAdmin.renderOverview();
+  },
+  renderKitchenBoard() {
+    this.renderBoard();
   }
 };
 
