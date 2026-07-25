@@ -2442,7 +2442,8 @@ const StoreAdmin = {
           quantity: null,
           amount: parseFloat(o.total_amount) || 0,
           description: `ลูกค้าสั่งผ่านเว็บ / LINE LIFF`,
-          isVirtual: true
+          isVirtual: true,
+          slip_image: o.slip_image
         };
       });
 
@@ -2569,7 +2570,8 @@ const StoreAdmin = {
           let payIcon = '💵';
           if (payMethod === 'QR code') payIcon = '📱';
           else if (payMethod === 'โครงการไทยช่วยไทย') payIcon = '🇹🇭';
-          const catTag = `<span class="ledger-cat-tag">${item.category}</span> <span style="font-size: 0.65rem; background: rgba(19, 78, 30, 0.04); padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); margin-left: 5px; font-weight: 500;">${payIcon} ${payMethod}</span>`;
+          const slipLink = item.slip_image ? ` <span onclick="StoreAdmin.viewSlip('${item.id}')" style="cursor: pointer; font-size: 0.65rem; color: var(--primary); text-decoration: underline; font-weight: 700; margin-left: 4px;">📄 สลิป</span>` : '';
+          const catTag = `<span class="ledger-cat-tag">${item.category}</span> <span style="font-size: 0.65rem; background: rgba(19, 78, 30, 0.04); padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); margin-left: 5px; font-weight: 500;">${payIcon} ${payMethod}${slipLink}</span>`;
           const editBtn = item.isVirtual 
             ? '' 
             : `<button class="btn-action btn-edit" onclick="StoreAdmin.editLedgerItem('${item.id}')" style="color: var(--primary); background: none; border: none; cursor: pointer; font-size: 0.95rem; margin-right: 8px;">✏️</button>`;
@@ -2657,6 +2659,46 @@ const StoreAdmin = {
         tbody.innerHTML = `<tr><td colspan="6" style="color: #ef4444; text-align: center; padding: 20px;">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</td></tr>`;
       }
     }
+  },
+  viewSlip(id) {
+    const ledger = db.get('ledger') || [];
+    const item = ledger.find(it => it.id === id);
+    if (!item || !item.slip_image) {
+      // Try searching orders if virtual
+      const orders = db.get('orders') || [];
+      const order = orders.find(o => o.id === id || o.order_id === id);
+      if (order && order.slip_image) {
+        item.slip_image = order.slip_image;
+      }
+    }
+    
+    if (!item || !item.slip_image) {
+      alert('ไม่พบรูปภาพสลิปสำหรับรายการนี้');
+      return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.85)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '20px';
+    
+    overlay.innerHTML = `
+      <div style="position: relative; max-width: 90%; max-height: 80%; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">×</button>
+        <img src="${item.slip_image}" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px;">
+      </div>
+      <div style="color: white; margin-top: 15px; font-size: 0.9rem; font-family: var(--font-prompt);">สลิปยืนยันรายการบัญชี #${id}</div>
+    `;
+    document.body.appendChild(overlay);
   },
 
   addLedgerItem(event) {
@@ -2975,8 +3017,10 @@ const POSApp = {
   selectedPayment: 'เงินสด',
   posBasket: [],
   selectedTopups: new Set(), // temporary selected topup names in modal
+  uploadedSlipBase64: null,
 
   init() {
+    this.clearSlip();
     this.posBasket = [];
     this.selectedCategory = 'all';
     this.selectedPayment = 'เงินสด';
@@ -3272,6 +3316,40 @@ const POSApp = {
     if (calcSection) {
       calcSection.style.display = method === 'เงินสด' ? 'block' : 'none';
     }
+
+    const slipSection = document.getElementById('pos-slip-section');
+    if (slipSection) {
+      slipSection.style.display = method === 'QR code' ? 'block' : 'none';
+    }
+  },
+
+  handleSlipUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target.result;
+      this.uploadedSlipBase64 = base64;
+      
+      const preview = document.getElementById('pos-slip-preview');
+      const previewContainer = document.getElementById('pos-slip-preview-container');
+      if (preview && previewContainer) {
+        preview.src = base64;
+        previewContainer.style.display = 'block';
+      }
+    };
+    reader.readAsDataURL(file);
+  },
+
+  clearSlip() {
+    this.uploadedSlipBase64 = null;
+    const fileInput = document.getElementById('pos-slip-file');
+    if (fileInput) fileInput.value = '';
+    const preview = document.getElementById('pos-slip-preview');
+    if (preview) preview.src = '';
+    const previewContainer = document.getElementById('pos-slip-preview-container');
+    if (previewContainer) previewContainer.style.display = 'none';
   },
 
   quickCash(amount) {
@@ -3352,6 +3430,9 @@ const POSApp = {
       items: [...this.posBasket],
       description: 'สั่งซื้อจากแท็บเล็ต POS หน้าร้าน'
     };
+    if (this.selectedPayment === 'QR code' && this.uploadedSlipBase64) {
+      itemData.slip_image = this.uploadedSlipBase64;
+    }
 
     db.insert('ledger', { id, ...itemData });
 
@@ -3382,6 +3463,9 @@ const POSApp = {
       order_datetime: new Date().toISOString(),
       source: 'POS หน้าร้าน'
     };
+    if (this.selectedPayment === 'QR code' && this.uploadedSlipBase64) {
+      newOrder.slip_image = this.uploadedSlipBase64;
+    }
     db.insert('orders', newOrder);
 
     alert('บันทึกออเดอร์ & ส่งเช็คบิลเข้าระบบครัวสำเร็จ!');
@@ -3483,6 +3567,7 @@ const KitchenApp = {
         </div>
         <div style="font-size:0.75rem; color: var(--text-secondary); margin-bottom: 8px;">
           ลูกค้า: ${o.customer_name} | <a href="tel:${o.customer_phone}" style="color:var(--accent); text-decoration:none; font-weight:700;">📞 โทรหา</a>
+          ${o.slip_image ? ` | <span onclick="KitchenApp.viewSlip('${o.id}')" style="color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline;">📄 ดูสลิป</span>` : ''}
         </div>
         <div class="kitchen-card-items">
           ${itemsHtml}
@@ -3525,6 +3610,37 @@ const KitchenApp = {
   },
   renderKitchenBoard() {
     this.renderBoard();
+  },
+  viewSlip(orderId) {
+    const orders = db.get('orders') || [];
+    const order = orders.find(o => o.id === orderId);
+    if (!order || !order.slip_image) {
+      alert('ไม่พบรูปภาพสลิปสำหรับออเดอร์นี้');
+      return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.85)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '20px';
+    
+    overlay.innerHTML = `
+      <div style="position: relative; max-width: 90%; max-height: 80%; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">×</button>
+        <img src="${order.slip_image}" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px;">
+      </div>
+      <div style="color: white; margin-top: 15px; font-size: 0.9rem; font-family: var(--font-prompt);">สลิปยืนยันการชำระเงินออเดอร์ #${orderId}</div>
+    `;
+    document.body.appendChild(overlay);
   }
 };
 
