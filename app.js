@@ -2696,18 +2696,25 @@ const StoreAdmin = {
     
     // Create virtual ledger items from verified orders
     const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
-    const virtualOrderItems = validOrders.map(o => ({
-      date: o.order_datetime.split(' ')[0],
-      type: 'income',
-      category: 'ขายอาหาร',
-      menu_name: `ยอดขายออนไลน์ (ออเดอร์ #${o.order_id.substr(-5).toUpperCase()})`,
-      quantity: 1,
-      unit: 'บิล',
-      unit_price: o.total_amount,
-      vendor: 'เว็บออนไลน์',
-      amount: o.total_amount,
-      description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
-    }));
+    const virtualOrderItems = validOrders.map(o => {
+      const orderIdStr = o.order_id ? String(o.order_id) : (o.id ? String(o.id) : '');
+      const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
+        ? o.order_datetime.split(' ')[0] 
+        : new Date().toISOString().split('T')[0];
+      const orderAmt = parseFloat(o.total_amount) || 0;
+      return {
+        date: orderDateStr,
+        type: 'income',
+        category: 'ขายอาหาร',
+        menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
+        quantity: 1,
+        unit: 'บิล',
+        unit_price: orderAmt,
+        vendor: 'เว็บออนไลน์',
+        amount: orderAmt,
+        description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
+      };
+    });
 
     const combinedLedger = [...manualLedger, ...virtualOrderItems];
     combinedLedger.sort((a, b) => b.date.localeCompare(a.date));
