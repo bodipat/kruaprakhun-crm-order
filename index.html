@@ -766,9 +766,41 @@
                         <!-- Populate dynamically -->
                       </select>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">จำนวนจาน (ยอดขายแมนนวล)</label>
-                      <input type="number" id="led-quantity" min="1" value="1" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+
+                    <!-- Custom Menu Name input (shown only when '-- กรอกชื่อเมนูเอง --' is selected) -->
+                    <div class="form-group" id="led-custom-menu-group" style="display: none; margin-bottom: 8px;">
+                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ระบุชื่อเมนูอาหาร *</label>
+                      <input type="text" id="led-custom-menu-name" placeholder="เช่น กะเพราปลาหมึก" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">จำนวนจาน</label>
+                        <input type="number" id="led-quantity" min="1" value="1" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                      </div>
+                      <div class="form-group" id="led-menu-price-group" style="display: none; margin-bottom: 0;">
+                        <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ราคาต่อจาน (฿)</label>
+                        <input type="number" id="led-menu-price" min="0" placeholder="เช่น 50" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                      </div>
+                    </div>
+
+                    <!-- Top-up / Add-ons section -->
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(19,78,30,0.08);">
+                      <label style="font-size: 0.7rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 6px;">➕ รายการเสริม / เครื่องดื่ม (Top-ups)</label>
+                      
+                      <!-- Top-up 1 Row -->
+                      <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; margin-bottom: 5px; align-items: center;">
+                        <input type="text" id="led-topup1-name" placeholder="เสริม 1 เช่น ไข่ดาว" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                        <input type="number" id="led-topup1-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
+                        <input type="number" id="led-topup1-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                      </div>
+
+                      <!-- Top-up 2 Row -->
+                      <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; align-items: center;">
+                        <input type="text" id="led-topup2-name" placeholder="เสริม 2 เช่น น้ำดื่ม" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                        <input type="number" id="led-topup2-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
+                        <input type="number" id="led-topup2-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                      </div>
                     </div>
                   </div>
 
