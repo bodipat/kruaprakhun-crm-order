@@ -2343,9 +2343,35 @@ const StoreAdmin = {
           const formattedAmount = (item.type === 'income' ? '+' : '-') + itemAmt.toLocaleString() + ' ฿';
           const amountStyle = item.type === 'income' ? 'color: var(--primary); font-weight: 700; text-align: right;' : 'color: #ef4444; font-weight: 700; text-align: right;';
           
-          let displayDesc = item.description || '';
-          if (item.type === 'expense' && item.product_name) {
-            displayDesc = `<strong>${item.product_name}</strong>${item.description ? ' - ' + item.description : ''}`;
+          let displayDesc = '';
+          if (item.type === 'expense') {
+            const prod = item.product_name || item.category || 'สินค้า';
+            displayDesc = `ซื้อ${prod}`;
+            
+            if (item.quantity !== null && item.quantity !== undefined && !isNaN(parseFloat(item.quantity))) {
+              displayDesc += ` ${item.quantity}`;
+              if (item.unit) {
+                displayDesc += `${item.unit}`;
+              }
+            }
+            
+            if (item.unit_price !== null && item.unit_price !== undefined && !isNaN(parseFloat(item.unit_price))) {
+              displayDesc += ` @${item.unit_price} บาท`;
+              if (item.unit) {
+                displayDesc += `/${item.unit}`;
+              }
+            }
+            
+            if (item.vendor) {
+              displayDesc += ` (ร้าน : ${item.vendor})`;
+            }
+            
+            const isOldAutoDesc = item.description && (item.description.startsWith('ซื้อ') || item.description.includes('ร้าน:'));
+            if (item.description && !isOldAutoDesc) {
+              displayDesc += ` - ${item.description}`;
+            }
+          } else {
+            displayDesc = item.description || 'ขายอาหาร';
           }
 
           tHtml += `
@@ -2407,21 +2433,6 @@ const StoreAdmin = {
       unitLabel = uLabel || null;
       vendor = vend || null;
       productName = pName || null;
-      
-      let detailParts = [];
-      if (quantity > 0 && unitLabel) detailParts.push(`${quantity} ${unitLabel}`);
-      if (unitPrice > 0) detailParts.push(`@${unitPrice} ฿`);
-      if (vendor) detailParts.push(`(ร้าน: ${vendor})`);
-      
-      const detailsStr = detailParts.join(' ');
-      if (!desc) {
-        const prod = productName || category;
-        desc = `ซื้อ${prod}` + (detailsStr ? ` ${detailsStr}` : '');
-      } else {
-        if (vendor && !desc.includes(vendor)) {
-          desc += ` (ร้าน: ${vendor})`;
-        }
-      }
     }
     
     const itemData = {
@@ -2494,7 +2505,9 @@ const StoreAdmin = {
     
     document.getElementById('led-date').value = item.date;
     document.getElementById('led-amount').value = item.amount;
-    document.getElementById('led-desc').value = item.description;
+    
+    const isOldAutoDesc = item.description && (item.description.startsWith('ซื้อ') || item.description.includes('ร้าน:'));
+    document.getElementById('led-desc').value = isOldAutoDesc ? '' : (item.description || '');
 
     // Change button styles
     document.getElementById('led-submit-btn').innerHTML = '💾 บันทึกการแก้ไข';
@@ -2581,6 +2594,12 @@ const StoreAdmin = {
       const vendorStr = item.vendor || '-';
       const descStr = item.description || '';
 
+      let cleanDesc = descStr;
+      const isOldAutoDesc = descStr && (descStr.startsWith('ซื้อ') || descStr.includes('ร้าน:'));
+      if (isOldAutoDesc) {
+        cleanDesc = '';
+      }
+
       const row = [
         formatDateDisplay(item.date),
         `"${typeStr}"`,
@@ -2591,7 +2610,7 @@ const StoreAdmin = {
         uPriceStr,
         `"${vendorStr}"`,
         item.amount,
-        `"${descStr.replace(/"/g, '""')}"`
+        `"${cleanDesc.replace(/"/g, '""')}"`
       ];
       csvContent += row.join(",") + "\r\n";
     });
