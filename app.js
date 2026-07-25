@@ -3374,7 +3374,7 @@ const POSApp = {
       order_status: 'Paid / Waiting Verify',
       payment_status: 'Paid',
       payment_method: this.selectedPayment,
-      order_datetime: new Date().toISOString().replace('T', ' ').substr(0, 19),
+      order_datetime: new Date().toISOString(),
       source: 'POS หน้าร้าน'
     };
     db.insert('orders', newOrder);
