@@ -2691,89 +2691,100 @@ const StoreAdmin = {
   },
 
   exportLedgerCSV() {
-    const orders = db.get('orders') || [];
-    const manualLedger = db.get('ledger') || [];
-    
-    // Create virtual ledger items from verified orders
-    const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
-    const virtualOrderItems = validOrders.map(o => {
-      const orderIdStr = o.order_id ? String(o.order_id) : (o.id ? String(o.id) : '');
-      const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
-        ? o.order_datetime.split(' ')[0] 
-        : new Date().toISOString().split('T')[0];
-      const orderAmt = parseFloat(o.total_amount) || 0;
-      return {
-        date: orderDateStr,
-        type: 'income',
-        category: 'ขายอาหาร',
-        menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
-        quantity: 1,
-        unit: 'บิล',
-        unit_price: orderAmt,
-        vendor: 'เว็บออนไลน์',
-        amount: orderAmt,
-        description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
-      };
-    });
+    try {
+      const orders = db.get('orders') || [];
+      const manualLedger = db.get('ledger') || [];
+      
+      // Create virtual ledger items from verified orders
+      const validOrders = orders.filter(o => o.order_status !== 'Cancelled' && o.payment_status !== 'Rejected');
+      const virtualOrderItems = validOrders.map(o => {
+        const orderIdStr = o.order_id ? String(o.order_id) : (o.id ? String(o.id) : '');
+        const orderDateStr = (o.order_datetime && typeof o.order_datetime === 'string') 
+          ? o.order_datetime.split(' ')[0] 
+          : new Date().toISOString().split('T')[0];
+        const orderAmt = parseFloat(o.total_amount) || 0;
+        return {
+          date: orderDateStr,
+          type: 'income',
+          category: 'ขายอาหาร',
+          menu_name: orderIdStr ? `ออเดอร์เว็บ (ID: ${orderIdStr.substr(-5).toUpperCase()})` : 'ออเดอร์เว็บ',
+          quantity: 1,
+          unit: 'บิล',
+          unit_price: orderAmt,
+          vendor: 'เว็บออนไลน์',
+          amount: orderAmt,
+          description: 'ลูกค้าสั่งอาหารผ่านเว็บ/LINE LIFF'
+        };
+      });
 
-    const combinedLedger = [...manualLedger, ...virtualOrderItems];
-    combinedLedger.sort((a, b) => b.date.localeCompare(a.date));
+      const combinedLedger = [...manualLedger, ...virtualOrderItems];
+      
+      // Safe sorting
+      combinedLedger.sort((a, b) => {
+        const dA = a.date || '';
+        const dB = b.date || '';
+        return dB.localeCompare(dA);
+      });
 
-    // Construct structured CSV file
-    let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel Thai support
-    const headers = [
-      "วันที่ (Date)", 
-      "ประเภท (Type)", 
-      "หมวดหมู่ (Category)", 
-      "ชื่อสินค้า/เมนู (Item Name)", 
-      "จำนวน (Qty)", 
-      "หน่วยนับ (Unit)", 
-      "ราคาต่อหน่วย (Unit Price)", 
-      "แหล่งซื้อสินค้า (Vendor)", 
-      "จำนวนเงินรวม (Total Amount)", 
-      "รายละเอียด (Description)"
-    ];
-    csvContent += headers.join(",") + "\r\n";
-
-    combinedLedger.forEach(item => {
-      const typeStr = item.type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)';
-      const itemName = item.type === 'expense' ? (item.product_name || item.category) : (item.menu_name || '-');
-      const qtyStr = item.quantity !== null && item.quantity !== undefined ? item.quantity : '-';
-      const unitStr = item.unit || '-';
-      const uPriceStr = item.unit_price !== null && item.unit_price !== undefined ? item.unit_price : '-';
-      const vendorStr = item.vendor || '-';
-      const descStr = item.description || '';
-
-      let cleanDesc = descStr;
-      const isOldAutoDesc = descStr && (descStr.startsWith('ซื้อ') || descStr.includes('ร้าน:'));
-      if (isOldAutoDesc) {
-        cleanDesc = '';
-      }
-
-      const row = [
-        formatDateDisplay(item.date),
-        `"${typeStr}"`,
-        `"${item.category}"`,
-        `"${itemName}"`,
-        qtyStr,
-        `"${unitStr}"`,
-        uPriceStr,
-        `"${vendorStr}"`,
-        item.amount,
-        `"${cleanDesc.replace(/"/g, '""')}"`
+      // Construct structured CSV file
+      let csvContent = "\uFEFF"; // Add UTF-8 BOM for Microsoft Excel Thai support
+      const headers = [
+        "วันที่ (Date)", 
+        "ประเภท (Type)", 
+        "หมวดหมู่ (Category)", 
+        "ชื่อสินค้า/เมนู (Item Name)", 
+        "จำนวน (Qty)", 
+        "หน่วยนับ (Unit)", 
+        "ราคาต่อหน่วย (Unit Price)", 
+        "แหล่งซื้อสินค้า (Vendor)", 
+        "จำนวนเงินรวม (Total Amount)", 
+        "รายละเอียด (Description)"
       ];
-      csvContent += row.join(",") + "\r\n";
-    });
+      csvContent += headers.join(",") + "\r\n";
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `kruaprakhun_ledger_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      combinedLedger.forEach(item => {
+        const typeStr = item.type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)';
+        const itemName = item.type === 'expense' ? (item.product_name || item.category || '-') : (item.menu_name || '-');
+        const qtyStr = item.quantity !== null && item.quantity !== undefined ? item.quantity : '-';
+        const unitStr = item.unit || '-';
+        const uPriceStr = item.unit_price !== null && item.unit_price !== undefined ? item.unit_price : '-';
+        const vendorStr = item.vendor || '-';
+        
+        let cleanDesc = item.description || '';
+        const isOldAutoDesc = cleanDesc && (cleanDesc.startsWith('ซื้อ') || cleanDesc.includes('ร้าน:'));
+        if (isOldAutoDesc) {
+          cleanDesc = '';
+        }
+
+        const dateFormatted = typeof formatDateDisplay === 'function' ? formatDateDisplay(item.date) : (item.date || '-');
+        const row = [
+          dateFormatted,
+          `"${typeStr}"`,
+          `"${item.category || '-'}"`,
+          `"${itemName}"`,
+          qtyStr,
+          `"${unitStr}"`,
+          uPriceStr,
+          `"${vendorStr}"`,
+          parseFloat(item.amount) || 0,
+          `"${cleanDesc.replace(/"/g, '""')}"`
+        ];
+        csvContent += row.join(",") + "\r\n";
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `kruaprakhun_ledger_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("CSV Export failed:", err);
+      alert("เกิดข้อผิดพลาดในการดาวน์โหลด CSV: " + err.message);
+    }
   }
 };
 
