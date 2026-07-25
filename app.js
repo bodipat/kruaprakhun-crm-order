@@ -3027,14 +3027,13 @@ const POSApp = {
     const container = document.getElementById('pos-category-bar');
     if (!container) return;
 
-    // Standard categories + อาหารแห้ง + เครื่องดื่ม
-    const categories = ['all', 'อาหารจานเดียว', 'อาหารแห้ง', 'ทานเล่น', 'เครื่องดื่ม'];
+    const categories = db.get('categories') || [];
     
-    let html = '';
+    let html = `<button class="pos-category-btn ${this.selectedCategory === 'all' ? 'active' : ''}" onclick="POSApp.filterCategory('all')" style="padding: 6px 14px; border-radius: 18px; border: 1.5px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">🔍 ทั้งหมด</button>`;
+    
     categories.forEach(cat => {
-      const activeClass = this.selectedCategory === cat ? 'active' : '';
-      const displayLabel = cat === 'all' ? '🔍 ทั้งหมด' : cat;
-      html += `<button class="pos-category-btn ${activeClass}" onclick="POSApp.filterCategory('${cat}')" style="padding: 6px 14px; border-radius: 18px; border: 1.5px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${displayLabel}</button>`;
+      const activeClass = this.selectedCategory === cat.id ? 'active' : '';
+      html += `<button class="pos-category-btn ${activeClass}" onclick="POSApp.filterCategory('${cat.id}')" style="padding: 6px 14px; border-radius: 18px; border: 1.5px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${cat.name}</button>`;
     });
     
     container.innerHTML = html;
@@ -3055,15 +3054,21 @@ const POSApp = {
     // Filter menus based on category selection
     const filteredMenus = menus.filter(m => {
       if (this.selectedCategory === 'all') return true;
-      return m.category === this.selectedCategory;
+      return m.category_id === this.selectedCategory;
     });
 
     let html = '';
     filteredMenus.forEach(m => {
+      const imgUrl = m.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120&auto=format&fit=crop&q=60';
       html += `
         <div class="pos-menu-card" onclick="POSApp.openModifierModal('${m.id}')">
-          <span class="pos-menu-card-title">${m.name}</span>
-          <span class="pos-menu-card-price">${m.base_price.toLocaleString()} ฿</span>
+          <div style="height: 90px; width: 100%; overflow: hidden; background: #f3f4f6;">
+            <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${m.name}" loading="lazy">
+          </div>
+          <div style="padding: 8px; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+            <span class="pos-menu-card-title" style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${m.name}</span>
+            <span class="pos-menu-card-price" style="font-size: 0.85rem; font-weight: 800; color: var(--accent); margin-top: 4px;">${m.base_price.toLocaleString()} ฿</span>
+          </div>
         </div>
       `;
     });
