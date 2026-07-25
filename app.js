@@ -2560,11 +2560,21 @@ const StoreAdmin = {
       state.editingLedgerId = null;
       document.getElementById('led-submit-btn').innerHTML = '💾 บันทึกรายการ';
       document.getElementById('led-cancel-btn').style.display = 'none';
+      alert('บันทึกการแก้ไขรายการสำเร็จ!');
     } else {
       // Insert new item
       const id = 'led_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
       db.insert('ledger', { id, ...itemData });
+      alert('บันทึกรายการสำเร็จ!');
     }
+    
+    // Reset category to defaults based on type
+    if (type === 'income') {
+      document.getElementById('led-category').value = 'ขายอาหาร';
+    } else {
+      document.getElementById('led-category').value = 'เนื้อสัตว์';
+    }
+    this.handleLedgerCategoryChange();
     
     // Clear form and re-render
     document.getElementById('led-amount').value = '';
