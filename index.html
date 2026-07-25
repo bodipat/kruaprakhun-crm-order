@@ -755,7 +755,8 @@
 
                   <div class="form-group" id="led-product-group" style="margin-bottom: 12px;">
                     <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">ชื่อสินค้า *</label>
-                    <input type="text" id="led-product-name" placeholder="เช่น ผักคะน้า, อกไก่, ซอสปรุงรส" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
+                    <input type="text" id="led-product-name" list="led-suggest-products" placeholder="เช่น ผักคะน้า, อกไก่, ซอสปรุงรส" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;">
+                    <datalist id="led-suggest-products"></datalist>
                   </div>
 
                   <!-- Dynamic Menu Selection for Food Sales (Income only) -->
@@ -770,7 +771,8 @@
                     <!-- Custom Menu Name input (shown only when '-- กรอกชื่อเมนูเอง --' is selected) -->
                     <div class="form-group" id="led-custom-menu-group" style="display: none; margin-bottom: 8px;">
                       <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ระบุชื่อเมนูอาหาร *</label>
-                      <input type="text" id="led-custom-menu-name" placeholder="เช่น กะเพราปลาหมึก" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                      <input type="text" id="led-custom-menu-name" list="led-suggest-menus" placeholder="เช่น กะเพราปลาหมึก" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                      <datalist id="led-suggest-menus"></datalist>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
@@ -790,14 +792,15 @@
                       
                       <!-- Top-up 1 Row -->
                       <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; margin-bottom: 5px; align-items: center;">
-                        <input type="text" id="led-topup1-name" placeholder="เสริม 1 เช่น ไข่ดาว" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                        <input type="text" id="led-topup1-name" list="led-suggest-topups" placeholder="เสริม 1 เช่น ไข่ดาว" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
                         <input type="number" id="led-topup1-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
                         <input type="number" id="led-topup1-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
                       </div>
 
                       <!-- Top-up 2 Row -->
                       <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; align-items: center;">
-                        <input type="text" id="led-topup2-name" placeholder="เสริม 2 เช่น น้ำดื่ม" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                        <input type="text" id="led-topup2-name" list="led-suggest-topups" placeholder="เสริม 2 เช่น น้ำดื่ม" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                      <datalist id="led-suggest-topups"></datalist>
                         <input type="number" id="led-topup2-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
                         <input type="number" id="led-topup2-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
                       </div>

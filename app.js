@@ -2224,8 +2224,82 @@ const StoreAdmin = {
     }
   },
 
+  updateAutocompleteSuggestions() {
+    try {
+      const ledger = db.get('ledger') || [];
+      const menus = db.get('menus') || [];
+      
+      // 1. Gather unique custom menu names
+      const uniqueMenus = new Set();
+      // Add standard menus as baseline suggestions
+      menus.forEach(m => {
+        if (m && m.name) uniqueMenus.add(m.name);
+      });
+      // Add previously recorded manual menu names
+      ledger.forEach(item => {
+        if (item && item.type === 'income' && item.category === 'ขายอาหาร' && item.menu_name) {
+          if (!item.menu_name.includes('ยอดขายออนไลน์') && !item.menu_name.includes('ออเดอร์เว็บ')) {
+            uniqueMenus.add(item.menu_name);
+          }
+        }
+      });
+      
+      const dlMenus = document.getElementById('led-suggest-menus');
+      if (dlMenus) {
+        dlMenus.innerHTML = '';
+        Array.from(uniqueMenus).sort().forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          dlMenus.appendChild(opt);
+        });
+      }
+
+      // 2. Gather unique top-up names
+      const uniqueTopups = new Set(['ไข่ดาว', 'ไข่เจียว', 'น้ำดื่ม', 'น้ำเปล่า', 'น้ำอัดลม']);
+      ledger.forEach(item => {
+        if (item) {
+          if (item.topup1_name) uniqueTopups.add(item.topup1_name);
+          if (item.topup2_name) uniqueTopups.add(item.topup2_name);
+        }
+      });
+      
+      const dlTopups = document.getElementById('led-suggest-topups');
+      if (dlTopups) {
+        dlTopups.innerHTML = '';
+        Array.from(uniqueTopups).sort().forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          dlTopups.appendChild(opt);
+        });
+      }
+
+      // 3. Gather unique product names (expenses)
+      const uniqueProducts = new Set();
+      ledger.forEach(item => {
+        if (item && item.type === 'expense' && item.product_name) {
+          uniqueProducts.add(item.product_name);
+        }
+      });
+      
+      const dlProducts = document.getElementById('led-suggest-products');
+      if (dlProducts) {
+        dlProducts.innerHTML = '';
+        Array.from(uniqueProducts).sort().forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          dlProducts.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.warn("Autocomplete suggestion population failed:", err);
+    }
+  },
+
   renderLedger() {
     try {
+      // 0. Update dynamic suggestions
+      this.updateAutocompleteSuggestions();
+      
       // 1. Initial defaults
       const dateInput = document.getElementById('led-date');
       if (dateInput && !dateInput.value) {
