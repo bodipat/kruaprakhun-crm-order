@@ -246,6 +246,7 @@ const state = {
   },
   soundEnabled: true,
   audioContext: null,
+  currentLedgerBasket: [],
   authenticatedRoles: {
     admin: false,
     kitchen: false,
@@ -2174,6 +2175,7 @@ const StoreAdmin = {
         el.dataset.price = m.base_price;
         menuSelect.appendChild(el);
       });
+      this.renderBasket();
       this.handleLedgerMenuSelectChange();
     } else {
       menuSection.style.display = 'none';
@@ -2187,33 +2189,18 @@ const StoreAdmin = {
     const customGroup = document.getElementById('led-custom-menu-group');
     const priceGroup = document.getElementById('led-menu-price-group');
     
-    let basePrice = 0;
     if (selectedValue === 'custom') {
       if (customGroup) customGroup.style.display = 'block';
       if (priceGroup) priceGroup.style.display = 'block';
-      basePrice = parseFloat(document.getElementById('led-menu-price').value) || 0;
     } else {
       if (customGroup) customGroup.style.display = 'none';
       if (priceGroup) priceGroup.style.display = 'none';
       const selectedOption = menuSelect.options[menuSelect.selectedIndex];
       if (selectedOption) {
-        basePrice = parseFloat(selectedOption.dataset.price) || 0;
+        const price = parseFloat(selectedOption.dataset.price) || 0;
+        document.getElementById('led-menu-price').value = price;
       }
     }
-    
-    const qty = parseInt(document.getElementById('led-quantity').value) || 1;
-    const mainTotal = basePrice * qty;
-    
-    // Top-ups sum calculation
-    const t1Qty = parseInt(document.getElementById('led-topup1-qty').value) || 1;
-    const t1Price = parseFloat(document.getElementById('led-topup1-price').value) || 0;
-    const t1Total = t1Qty * t1Price;
-    
-    const t2Qty = parseInt(document.getElementById('led-topup2-qty').value) || 1;
-    const t2Price = parseFloat(document.getElementById('led-topup2-price').value) || 0;
-    const t2Total = t2Qty * t2Price;
-    
-    document.getElementById('led-amount').value = Math.round(mainTotal + t1Total + t2Total);
   },
 
   calculateLedgerExpenseTotal() {
@@ -2293,6 +2280,91 @@ const StoreAdmin = {
     } catch (err) {
       console.warn("Autocomplete suggestion population failed:", err);
     }
+  },
+
+  addBasketItem() {
+    const menuSelect = document.getElementById('led-menu-select');
+    if (!menuSelect) return;
+    const selectedValue = menuSelect.value;
+    
+    let name = '';
+    let price = 0;
+    if (selectedValue === 'custom') {
+      name = document.getElementById('led-custom-menu-name').value.trim();
+      price = parseFloat(document.getElementById('led-menu-price').value) || 0;
+    } else {
+      const opt = menuSelect.options[menuSelect.selectedIndex];
+      name = opt ? opt.text : '';
+      price = opt ? (parseFloat(opt.dataset.price) || 0) : 0;
+    }
+    
+    const qty = parseInt(document.getElementById('led-quantity').value) || 1;
+    
+    if (!name) {
+      alert('กรุณาระบุชื่อเมนูอาหาร');
+      return;
+    }
+    
+    state.currentLedgerBasket = state.currentLedgerBasket || [];
+    state.currentLedgerBasket.push({
+      name: name,
+      quantity: qty,
+      price: price
+    });
+    
+    // Clear input fields
+    document.getElementById('led-custom-menu-name').value = '';
+    document.getElementById('led-menu-price').value = '';
+    document.getElementById('led-quantity').value = '1';
+    
+    this.renderBasket();
+    
+    // Update grand total
+    let total = 0;
+    state.currentLedgerBasket.forEach(item => {
+      total += item.quantity * item.price;
+    });
+    document.getElementById('led-amount').value = Math.round(total);
+  },
+
+  removeBasketItem(index) {
+    state.currentLedgerBasket.splice(index, 1);
+    this.renderBasket();
+    
+    // Update grand total
+    let total = 0;
+    state.currentLedgerBasket.forEach(item => {
+      total += item.quantity * item.price;
+    });
+    document.getElementById('led-amount').value = Math.round(total);
+  },
+
+  renderBasket() {
+    const container = document.getElementById('led-basket-container');
+    if (!container) return;
+    
+    state.currentLedgerBasket = state.currentLedgerBasket || [];
+    
+    if (state.currentLedgerBasket.length === 0) {
+      container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 15px 0;">ไม่มีสินค้าในตะกร้า (กรุณาเพิ่มอย่างน้อย 1 รายการ)</div>';
+      return;
+    }
+    
+    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    html += '<tr style="border-bottom: 1px solid rgba(19,78,30,0.1); font-weight: 600; color: var(--primary);"><td style="padding: 4px;">รายการ</td><td style="padding: 4px; text-align: center;">จำนวน</td><td style="padding: 4px; text-align: right;">ราคา</td><td style="padding: 4px; text-align: center;">ลบ</td></tr>';
+    
+    state.currentLedgerBasket.forEach((item, index) => {
+      const itemTotal = item.quantity * item.price;
+      html += `<tr style="border-bottom: 1px solid rgba(19,78,30,0.05);">
+        <td style="padding: 4px; font-weight: 500;">${item.name}</td>
+        <td style="padding: 4px; text-align: center;">${item.quantity}</td>
+        <td style="padding: 4px; text-align: right;">${itemTotal.toLocaleString()} ฿</td>
+        <td style="padding: 4px; text-align: center;"><button type="button" onclick="StoreAdmin.removeBasketItem(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold; font-size: 1.1rem; padding: 0 4px;">×</button></td>
+      </tr>`;
+    });
+    
+    html += '</table>';
+    container.innerHTML = html;
   },
 
   renderLedger() {
@@ -2383,6 +2455,25 @@ const StoreAdmin = {
         profitEl.style.color = '#ef4444';
       }
 
+      // 4b. Calculate Avg Basket Size
+      let totalPlatesSold = 0;
+      let totalFoodOrders = 0;
+      filteredLedger.forEach(item => {
+        if (item.type === 'income' && item.category === 'ขายอาหาร') {
+          totalFoodOrders += 1;
+          if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+            totalPlatesSold += item.items.reduce((sum, it) => sum + (parseInt(it.quantity) || 1), 0);
+          } else {
+            totalPlatesSold += parseFloat(item.quantity) || 1;
+          }
+        }
+      });
+      const avgBasketSize = totalFoodOrders > 0 ? (totalPlatesSold / totalFoodOrders) : 0;
+      const basketVal = document.getElementById('ledger-basket-size-val');
+      if (basketVal) {
+        basketVal.textContent = avgBasketSize.toFixed(2) + ' ชิ้น/ออเดอร์';
+      }
+
       // 5. Calculate Top 5 Best-Sellers (Unfiltered / Overall logic to match paper requirements)
       const menuSales = {};
       
@@ -2436,7 +2527,11 @@ const StoreAdmin = {
             ? `<span class="ledger-badge-income">รายรับ</span>` 
             : `<span class="ledger-badge-expense">รายจ่าย</span>`;
              
-          const catTag = `<span class="ledger-cat-tag">${item.category}</span>`;
+          const payMethod = item.payment_method || 'เงินสด';
+          let payIcon = '💵';
+          if (payMethod === 'QR code') payIcon = '📱';
+          else if (payMethod === 'โครงการไทยช่วยไทย') payIcon = '🇹🇭';
+          const catTag = `<span class="ledger-cat-tag">${item.category}</span> <span style="font-size: 0.65rem; background: rgba(19, 78, 30, 0.04); padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); margin-left: 5px; font-weight: 500;">${payIcon} ${payMethod}</span>`;
           const editBtn = item.isVirtual 
             ? '' 
             : `<button class="btn-action btn-edit" onclick="StoreAdmin.editLedgerItem('${item.id}')" style="color: var(--primary); background: none; border: none; cursor: pointer; font-size: 0.95rem; margin-right: 8px;">✏️</button>`;
@@ -2478,34 +2573,18 @@ const StoreAdmin = {
             }
           } else {
             if (item.category === 'ขายอาหาร') {
-              const menuName = item.menu_name || 'ขายอาหาร';
-              displayDesc = `ขายอาหาร: ${menuName}`;
-              if (item.quantity) {
-                displayDesc += ` ${item.quantity} จาน`;
-              }
-              if (item.unit_price) {
-                displayDesc += ` @${item.unit_price} ฿`;
-              }
-              
-              if (item.topup1_name) {
-                displayDesc += ` + ${item.topup1_name}`;
-                if (item.topup1_qty && item.topup1_qty > 1) {
-                  displayDesc += ` ${item.topup1_qty} ฟอง`;
+              if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+                displayDesc = `ขายอาหาร: [${item.items.map(it => `${it.name} x${it.quantity}`).join(', ')}]`;
+              } else {
+                const menuName = item.menu_name || 'ขายอาหาร';
+                displayDesc = `ขายอาหาร: ${menuName}`;
+                if (item.quantity) {
+                  displayDesc += ` ${item.quantity} จาน`;
                 }
-                if (item.topup1_price) {
-                  displayDesc += ` (${item.topup1_price * (item.topup1_qty || 1)} ฿)`;
+                if (item.unit_price) {
+                  displayDesc += ` @${item.unit_price} ฿`;
                 }
               }
-              if (item.topup2_name) {
-                displayDesc += ` + ${item.topup2_name}`;
-                if (item.topup2_qty && item.topup2_qty > 1) {
-                  displayDesc += ` ${item.topup2_qty} ฟอง`;
-                }
-                if (item.topup2_price) {
-                  displayDesc += ` (${item.topup2_price * (item.topup2_qty || 1)} ฿)`;
-                }
-              }
-              
               if (item.description) {
                 displayDesc += ` - ${item.description}`;
               }
@@ -2553,44 +2632,21 @@ const StoreAdmin = {
     let vendor = null;
     let productName = null;
     
-    let topup1_name = null;
-    let topup1_qty = null;
-    let topup1_price = null;
-    let topup2_name = null;
-    let topup2_qty = null;
-    let topup2_price = null;
+    let basketItems = null;
+    const paymentMethod = document.getElementById('led-payment-method').value;
 
     if (type === 'income' && category === 'ขายอาหาร') {
-      const menuSelect = document.getElementById('led-menu-select');
-      menuId = menuSelect.value;
-      if (menuId === 'custom') {
-        menuName = document.getElementById('led-custom-menu-name').value.trim() || 'เมนูพิเศษ';
-        unitPrice = parseFloat(document.getElementById('led-menu-price').value) || 0;
-      } else {
-        menuName = menuSelect.options[menuSelect.selectedIndex].text;
-        const selectedOption = menuSelect.options[menuSelect.selectedIndex];
-        unitPrice = selectedOption ? (parseFloat(selectedOption.dataset.price) || 0) : 0;
+      state.currentLedgerBasket = state.currentLedgerBasket || [];
+      if (state.currentLedgerBasket.length === 0) {
+        alert('กรุณาเพิ่มรายการสินค้าลงในตะกร้าอย่างน้อย 1 รายการก่อนบันทึก');
+        return;
       }
-      quantity = parseInt(document.getElementById('led-quantity').value) || 1;
+      basketItems = [...state.currentLedgerBasket];
       
-      // Top-ups
-      const t1Name = document.getElementById('led-topup1-name').value.trim();
-      const t1Qty = parseInt(document.getElementById('led-topup1-qty').value) || 1;
-      const t1Price = parseFloat(document.getElementById('led-topup1-price').value);
-      if (t1Name) {
-        topup1_name = t1Name;
-        topup1_qty = t1Qty;
-        topup1_price = !isNaN(t1Price) ? t1Price : 0;
-      }
-
-      const t2Name = document.getElementById('led-topup2-name').value.trim();
-      const t2Qty = parseInt(document.getElementById('led-topup2-qty').value) || 1;
-      const t2Price = parseFloat(document.getElementById('led-topup2-price').value);
-      if (t2Name) {
-        topup2_name = t2Name;
-        topup2_qty = t2Qty;
-        topup2_price = !isNaN(t2Price) ? t2Price : 0;
-      }
+      // Save menuName as a list summary of items
+      menuName = basketItems.map(it => `${it.name} x${it.quantity}`).join(', ');
+      quantity = basketItems.reduce((sum, it) => sum + it.quantity, 0);
+      unitPrice = null; // Stored inside basket items array instead
     } else if (type === 'expense') {
       const uQty = parseFloat(document.getElementById('led-unit-qty').value);
       const uPrice = parseFloat(document.getElementById('led-unit-price').value);
@@ -2617,12 +2673,8 @@ const StoreAdmin = {
       unit: unitLabel,
       vendor,
       amount,
-      topup1_name,
-      topup1_qty,
-      topup1_price,
-      topup2_name,
-      topup2_qty,
-      topup2_price,
+      payment_method: paymentMethod,
+      items: basketItems,
       description: desc || ""
     };
 
@@ -2648,6 +2700,10 @@ const StoreAdmin = {
     } else {
       document.getElementById('led-category').value = 'เนื้อสัตว์';
     }
+    
+    // Reset basket and payment method
+    state.currentLedgerBasket = [];
+    document.getElementById('led-payment-method').value = 'เงินสด';
     this.handleLedgerCategoryChange();
     
     // Clear form and re-render
@@ -2661,12 +2717,6 @@ const StoreAdmin = {
     document.getElementById('led-product-name').value = '';
     document.getElementById('led-custom-menu-name').value = '';
     document.getElementById('led-menu-price').value = '';
-    document.getElementById('led-topup1-name').value = '';
-    document.getElementById('led-topup1-qty').value = '1';
-    document.getElementById('led-topup1-price').value = '';
-    document.getElementById('led-topup2-name').value = '';
-    document.getElementById('led-topup2-qty').value = '1';
-    document.getElementById('led-topup2-price').value = '';
     
     this.renderLedger();
   },
@@ -2686,24 +2736,18 @@ const StoreAdmin = {
     document.getElementById('led-category').value = item.category;
     this.handleLedgerCategoryChange();
     
+    // Populate payment method
+    document.getElementById('led-payment-method').value = item.payment_method || 'เงินสด';
+
     if (item.type === 'income' && item.category === 'ขายอาหาร') {
-      document.getElementById('led-menu-select').value = item.menu_id || 'custom';
+      state.currentLedgerBasket = item.items || [];
+      this.renderBasket();
+      
+      document.getElementById('led-menu-select').value = 'custom';
       this.handleLedgerMenuSelectChange();
-      
-      if (item.menu_id === 'custom') {
-        document.getElementById('led-custom-menu-name').value = item.menu_name || '';
-        document.getElementById('led-menu-price').value = item.unit_price || '';
-      }
-      document.getElementById('led-quantity').value = item.quantity || '1';
-      
-      // Top-ups
-      document.getElementById('led-topup1-name').value = item.topup1_name || '';
-      document.getElementById('led-topup1-qty').value = item.topup1_qty || '1';
-      document.getElementById('led-topup1-price').value = item.topup1_price !== null && item.topup1_price !== undefined ? item.topup1_price : '';
-      
-      document.getElementById('led-topup2-name').value = item.topup2_name || '';
-      document.getElementById('led-topup2-qty').value = item.topup2_qty || '1';
-      document.getElementById('led-topup2-price').value = item.topup2_price !== null && item.topup2_price !== undefined ? item.topup2_price : '';
+      document.getElementById('led-custom-menu-name').value = '';
+      document.getElementById('led-menu-price').value = '';
+      document.getElementById('led-quantity').value = '1';
     } else if (item.type === 'expense') {
       document.getElementById('led-product-name').value = item.product_name || '';
       document.getElementById('led-unit-qty').value = item.quantity || '';
@@ -2730,6 +2774,10 @@ const StoreAdmin = {
     state.editingLedgerId = null;
     
     // Clear and restore form
+    state.currentLedgerBasket = [];
+    document.getElementById('led-payment-method').value = 'เงินสด';
+    this.renderBasket();
+    
     document.getElementById('led-amount').value = '';
     document.getElementById('led-desc').value = '';
     document.getElementById('led-quantity').value = '1';
@@ -2740,12 +2788,6 @@ const StoreAdmin = {
     document.getElementById('led-product-name').value = '';
     document.getElementById('led-custom-menu-name').value = '';
     document.getElementById('led-menu-price').value = '';
-    document.getElementById('led-topup1-name').value = '';
-    document.getElementById('led-topup1-qty').value = '1';
-    document.getElementById('led-topup1-price').value = '';
-    document.getElementById('led-topup2-name').value = '';
-    document.getElementById('led-topup2-qty').value = '1';
-    document.getElementById('led-topup2-price').value = '';
     document.getElementById('led-type').value = 'expense';
     this.handleLedgerFormTypeChange();
     
@@ -2811,6 +2853,7 @@ const StoreAdmin = {
         "หน่วยนับ (Unit)", 
         "ราคาต่อหน่วย (Unit Price)", 
         "แหล่งซื้อสินค้า (Vendor)", 
+        "วิธีการชำระเงิน (Payment Method)",
         "จำนวนเงินรวม (Total Amount)", 
         "รายละเอียด (Description)"
       ];
@@ -2831,15 +2874,23 @@ const StoreAdmin = {
         }
 
         const dateFormatted = typeof formatDateDisplay === 'function' ? formatDateDisplay(item.date) : (item.date || '-');
+        
+        let itemNameFinal = itemName;
+        if (item.type === 'income' && item.category === 'ขายอาหาร' && item.items && Array.isArray(item.items) && item.items.length > 0) {
+          itemNameFinal = item.items.map(it => `${it.name} x${it.quantity}`).join(' + ');
+        }
+        const payMethodStr = item.payment_method || (item.isVirtual ? 'QR code' : 'เงินสด');
+
         const row = [
           dateFormatted,
           `"${typeStr}"`,
           `"${item.category || '-'}"`,
-          `"${itemName}"`,
+          `"${itemNameFinal}"`,
           qtyStr,
           `"${unitStr}"`,
           uPriceStr,
           `"${vendorStr}"`,
+          `"${payMethodStr}"`,
           parseFloat(item.amount) || 0,
           `"${cleanDesc.replace(/"/g, '""')}"`
         ];

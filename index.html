@@ -698,11 +698,17 @@
               <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* ค่าวัตถุดิบ บรรจุภัณฑ์ และสาธารณูปโภค</div>
             </div>
             
-            <div class="stat-card" style="border-left: 4px solid var(--primary); background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-              <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">กำไรสุทธิ</div>
-              <div class="stat-value" id="ledger-profit-val" style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-top: 5px;">0 ฿</div>
-              <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* ยอดเงินคงเหลือหลังจากหักรายจ่ายแล้ว</div>
-            </div>
+                         <div class="stat-card" style="border-left: 4px solid var(--primary); background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+               <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">กำไรสุทธิ</div>
+               <div class="stat-value" id="ledger-profit-val" style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-top: 5px;">0 ฿</div>
+               <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* ยอดเงินคงเหลือหลังจากหักรายจ่ายแล้ว</div>
+             </div>
+             
+             <div class="stat-card" style="border-left: 4px solid var(--accent); background: white; padding: 15px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+               <div class="stat-title" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">ขนาดตะกร้าเฉลี่ย (Basket Size)</div>
+               <div class="stat-value" id="ledger-basket-size-val" style="font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 5px;">1.00 ชิ้น/ออเดอร์</div>
+               <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">* จำนวนเมนู/สินค้าเฉลี่ยต่อ 1 ใบเสร็จขายอาหาร</div>
+             </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start;">
@@ -759,51 +765,45 @@
                     <datalist id="led-suggest-products"></datalist>
                   </div>
 
-                  <!-- Dynamic Menu Selection for Food Sales (Income only) -->
-                  <div id="led-menu-sales-section" style="display: none; padding: 10px; background: rgba(19,78,30,0.03); border-radius: var(--radius-sm); border: 1px dashed rgba(19,78,30,0.1); margin-bottom: 12px;">
-                    <div class="form-group" style="margin-bottom: 8px;">
-                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">เลือกเมนูอาหารที่ขาย</label>
-                      <select id="led-menu-select" onchange="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem; outline: none; background: white;">
-                        <!-- Populate dynamically -->
-                      </select>
+                  <!-- Dynamic Menu Selection with Basket Builder for Food Sales (Income only) -->
+                  <div id="led-menu-sales-section" style="display: none; padding: 12px; background: rgba(19,78,30,0.03); border-radius: var(--radius-md); border: 1px dashed rgba(19,78,30,0.15); margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 6px;">🛒 รายการสินค้าในออเดอร์นี้ (Basket)</label>
+                    
+                    <!-- Basket List Container -->
+                    <div id="led-basket-container" style="background: white; border: 1px solid rgba(19, 78, 30, 0.08); border-radius: var(--radius-sm); padding: 8px; margin-bottom: 10px; max-height: 150px; overflow-y: auto; font-size: 0.75rem;">
+                      <!-- Populated dynamically -->
                     </div>
 
-                    <!-- Custom Menu Name input (shown only when '-- กรอกชื่อเมนูเอง --' is selected) -->
-                    <div class="form-group" id="led-custom-menu-group" style="display: none; margin-bottom: 8px;">
-                      <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ระบุชื่อเมนูอาหาร *</label>
-                      <input type="text" id="led-custom-menu-name" list="led-suggest-menus" placeholder="เช่น กะเพราปลาหมึก" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
-                      <datalist id="led-suggest-menus"></datalist>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                      <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">จำนวนจาน</label>
-                        <input type="number" id="led-quantity" min="1" value="1" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
-                      </div>
-                      <div class="form-group" id="led-menu-price-group" style="display: none; margin-bottom: 0;">
-                        <label style="font-size: 0.7rem; font-weight: 600; margin-bottom: 3px; display: block;">ราคาต่อจาน (฿)</label>
-                        <input type="number" id="led-menu-price" min="0" placeholder="เช่น 50" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
-                      </div>
-                    </div>
-
-                    <!-- Top-up / Add-ons section -->
-                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(19,78,30,0.08);">
-                      <label style="font-size: 0.7rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 6px;">➕ รายการเสริม / เครื่องดื่ม (Top-ups)</label>
-                      
-                      <!-- Top-up 1 Row -->
-                      <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; margin-bottom: 5px; align-items: center;">
-                        <input type="text" id="led-topup1-name" list="led-suggest-topups" placeholder="เสริม 1 เช่น ไข่ดาว" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
-                        <input type="number" id="led-topup1-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
-                        <input type="number" id="led-topup1-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                    <!-- Basket Entry Controls -->
+                    <div style="background: rgba(19,78,30,0.02); padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.05);">
+                      <div class="form-group" style="margin-bottom: 6px;">
+                        <label style="font-size: 0.65rem; font-weight: 600; margin-bottom: 2px; display: block;">เลือกเมนู / รายการสินค้า</label>
+                        <select id="led-menu-select" onchange="StoreAdmin.handleLedgerMenuSelectChange()" style="width: 100%; padding: 4px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem; outline: none; background: white;">
+                          <!-- Populate dynamically -->
+                        </select>
                       </div>
 
-                      <!-- Top-up 2 Row -->
-                      <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 5px; align-items: center;">
-                        <input type="text" id="led-topup2-name" list="led-suggest-topups" placeholder="เสริม 2 เช่น น้ำดื่ม" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
-                      <datalist id="led-suggest-topups"></datalist>
-                        <input type="number" id="led-topup2-qty" min="1" value="1" placeholder="จำนวน" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
-                        <input type="number" id="led-topup2-price" min="0" placeholder="ราคา" oninput="StoreAdmin.handleLedgerMenuSelectChange()" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                      <!-- Custom Menu Name input -->
+                      <div class="form-group" id="led-custom-menu-group" style="display: none; margin-bottom: 6px;">
+                        <label style="font-size: 0.65rem; font-weight: 600; margin-bottom: 2px; display: block;">ชื่อเมนูอาหาร (ระบุเอง) *</label>
+                        <input type="text" id="led-custom-menu-name" list="led-suggest-menus" placeholder="เช่น กะเพราปลาหมึก, ไข่ดาว" style="width: 100%; padding: 4px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                        <datalist id="led-suggest-menus"></datalist>
                       </div>
+
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                          <label style="font-size: 0.65rem; font-weight: 600; margin-bottom: 2px; display: block;">จำนวน</label>
+                          <input type="number" id="led-quantity" min="1" value="1" style="width: 100%; padding: 4px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                        </div>
+                        <div class="form-group" id="led-menu-price-group" style="margin-bottom: 0;">
+                          <label style="font-size: 0.65rem; font-weight: 600; margin-bottom: 2px; display: block;">ราคาต่อหน่วย (฿)</label>
+                          <input type="number" id="led-menu-price" min="0" placeholder="เช่น 50" style="width: 100%; padding: 4px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.75rem;">
+                        </div>
+                      </div>
+
+                      <button type="button" class="btn btn-primary" onclick="StoreAdmin.addBasketItem()" style="width: 100%; padding: 5px; font-size: 0.7rem; height: 26px; font-family: var(--font-prompt); justify-content: center; align-items: center; display: inline-flex;">
+                        ➕ เพิ่มรายการลงออเดอร์
+                      </button>
                     </div>
                   </div>
 
@@ -826,6 +826,15 @@
                   <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">วันที่บันทึก</label>
                     <input type="date" id="led-date" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem;" required>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; display: block;">วิธีการชำระเงิน</label>
+                    <select id="led-payment-method" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-family: inherit; font-size: 0.8rem; outline: none; background: white;">
+                      <option value="เงินสด">เงินสด</option>
+                      <option value="QR code">QR code / เงินโอน</option>
+                      <option value="โครงการไทยช่วยไทย">โครงการไทยช่วยไทย</option>
+                    </select>
                   </div>
 
                   <div class="form-group" style="margin-bottom: 12px;">
