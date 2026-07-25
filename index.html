@@ -23,6 +23,7 @@
 
     <div class="role-selectors">
       <button class="role-btn active" data-role="customer" onclick="switchRole('customer')">🛒 หน้าลูกค้า</button>
+      <button class="role-btn" data-role="pos" onclick="switchRole('pos')">📱 POS หน้าร้าน</button>
       <button class="role-btn" data-role="kitchen" onclick="switchRole('kitchen')">🍳 ห้องครัว</button>
       <button class="role-btn" data-role="admin" onclick="switchRole('admin')">📊 Store Admin</button>
       <button class="role-btn" data-role="marketing" onclick="switchRole('marketing')">📈 Marketing Admin</button>
@@ -445,6 +446,167 @@
       </div>
 
     </section>
+  </main>
+
+  <!-- ==========================================
+       2. MOBILE POINT OF SALE (POS) VIEW
+       ========================================== -->
+  <main id="pos-view" class="page-container" style="display:none; padding: 10px; max-width: 480px; margin: 0 auto; font-family: var(--font-prompt);">
+    <!-- POS Header -->
+    <header class="pos-header" style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px 15px; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 12px; border-left: 4px solid var(--primary);">
+      <div>
+        <h2 style="font-size: 1.1rem; color: var(--primary); margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <span>📱</span> ครัวพระคุณ POS
+        </h2>
+        <span style="font-size: 0.65rem; color: var(--text-secondary); background: rgba(19, 78, 30, 0.05); padding: 2px 6px; border-radius: 4px; font-weight: 600;">หน้าร้าน / พนักงาน</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="btn btn-secondary" onclick="logoutStaff()" style="padding: 5px 10px; font-size: 0.75rem; border-color: #ef4444; color: #ef4444; height: 28px;">
+          🚪 ออก
+        </button>
+      </div>
+    </header>
+
+    <!-- POS Tab Controllers -->
+    <div class="pos-tabs" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+      <button id="pos-tab-menu" class="pos-tab-btn active" onclick="POSApp.switchTab('menu')" style="padding: 10px; border-radius: var(--radius-md); border: none; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        🍔 เลือกเมนูอาหาร
+      </button>
+      <button id="pos-tab-cart" class="pos-tab-btn" onclick="POSApp.switchTab('cart')" style="padding: 10px; border-radius: var(--radius-md); border: none; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        🛒 ตะกร้าสั่งอาหาร <span id="pos-cart-badge" style="background: #ef4444; color: white; border-radius: 10px; padding: 1px 6px; font-size: 0.65rem; font-weight: bold; margin-left: 2px; display: none;">0</span>
+      </button>
+    </div>
+
+    <!-- POS Tab 1: Menu Grid Selection -->
+    <div id="pos-panel-menu" class="pos-panel active">
+      <!-- Categories scroll horizontal -->
+      <div id="pos-category-bar" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: none; -ms-overflow-style: none;">
+        <!-- Categories populated dynamically -->
+      </div>
+      
+      <!-- Custom item quick entry shortcut -->
+      <div style="background: white; padding: 10px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(0,0,0,0.02); border: 1px solid rgba(19, 78, 30, 0.06); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--primary);">📝 เมนูพิเศษ / กรอกเอง</span>
+        <button class="btn btn-primary" onclick="POSApp.openCustomItemModal()" style="padding: 4px 10px; font-size: 0.75rem; font-family: inherit; height: 26px;">
+          ➕ เพิ่มรายการ
+        </button>
+      </div>
+
+      <!-- Menu Grid Container -->
+      <div id="pos-menu-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 60px;">
+        <!-- Populated dynamically with large cards -->
+      </div>
+    </div>
+
+    <!-- POS Tab 2: Cart Summary & Checkout -->
+    <div id="pos-panel-cart" class="pos-panel" style="display: none; padding-bottom: 80px;">
+      <div style="background: white; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.02); border: 1px solid rgba(19,78,30,0.06); padding: 12px; margin-bottom: 12px;">
+        <h4 style="margin: 0 0 10px 0; color: var(--primary); font-size: 0.85rem; border-bottom: 1px dashed rgba(19,78,30,0.1); padding-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>🛍️</span> รายการอาหารในออเดอร์นี้
+        </h4>
+        <!-- Cart Items List Container -->
+        <div id="pos-cart-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Checkout Options -->
+      <div style="background: white; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.02); border: 1px solid rgba(19,78,30,0.06); padding: 12px; margin-bottom: 12px;">
+        <h4 style="margin: 0 0 10px 0; color: var(--primary); font-size: 0.85rem; border-bottom: 1px dashed rgba(19,78,30,0.1); padding-bottom: 6px;">
+          💳 วิธีการชำระเงิน
+        </h4>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;">
+          <button id="pos-pay-cash" class="pos-pay-btn active" onclick="POSApp.selectPayment('เงินสด')" style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: white;">
+            💵 เงินสด
+          </button>
+          <button id="pos-pay-qr" class="pos-pay-btn" onclick="POSApp.selectPayment('QR code')" style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: white;">
+            📱 QR code
+          </button>
+          <button id="pos-pay-project" class="pos-pay-btn" onclick="POSApp.selectPayment('โครงการไทยช่วยไทย')" style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: white;">
+            🇹🇭 ไทยช่วยไทย
+          </button>
+        </div>
+
+        <!-- Cash Calculator Section (Visible only for Cash payment) -->
+        <div id="pos-cash-calculator-section" style="background: rgba(19,78,30,0.02); padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">รับเงินมา (บาท):</span>
+            <input type="number" id="pos-cash-received" oninput="POSApp.calculateChange()" placeholder="ระบุจำนวนเงิน" style="width: 100px; padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.8rem; text-align: right;">
+          </div>
+          <!-- Quick cash pads -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
+            <button type="button" onclick="POSApp.quickCash(50)" style="padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.1); font-size: 0.7rem; font-family: inherit; cursor: pointer; background: white;">+50</button>
+            <button type="button" onclick="POSApp.quickCash(100)" style="padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.1); font-size: 0.7rem; font-family: inherit; cursor: pointer; background: white;">+100</button>
+            <button type="button" onclick="POSApp.quickCash(500)" style="padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.1); font-size: 0.7rem; font-family: inherit; cursor: pointer; background: white;">+500</button>
+            <button type="button" onclick="POSApp.quickCash(1000)" style="padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.1); font-size: 0.7rem; font-family: inherit; cursor: pointer; background: white;">+1000</button>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed rgba(19,78,30,0.1); padding-top: 6px; font-weight: 700; font-size: 0.85rem; color: #d97706;">
+            <span>💵 เงินทอน:</span>
+            <span id="pos-cash-change">0 ฿</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POS Footer Sticky checkout bar -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -4px 15px rgba(0,0,0,0.08); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 100; border-top: 1px solid rgba(0,0,0,0.05); max-width: 480px; margin: 0 auto;">
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 600;">ยอดเงินรวมทั้งหมด</span>
+        <span id="pos-grand-total" style="font-size: 1.15rem; font-weight: 800; color: var(--accent);">0 ฿</span>
+      </div>
+      <button class="btn btn-primary" onclick="POSApp.checkout()" style="width: 140px; padding: 8px 15px; font-family: inherit; font-size: 0.85rem; font-weight: 700; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(19, 78, 30, 0.2); justify-content: center; height: 36px; display: inline-flex; align-items: center;">
+        📥 ยืนยันชำระเงิน
+      </button>
+    </footer>
+
+    <!-- POS Modifier Modal Dialog (Custom Bottom Sheet overlay) -->
+    <div id="pos-modifier-modal" class="pos-modal-overlay" style="display:none;">
+      <div class="pos-modal-sheet">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1.5px solid rgba(19,78,30,0.08); padding-bottom: 8px;">
+          <h3 id="pos-mod-title" style="font-size: 0.95rem; font-weight: 700; color: var(--primary); margin: 0;">ข้าวกะเพราไก่</h3>
+          <button type="button" onclick="POSApp.closeModifierModal()" style="background: none; border: none; font-size: 1.3rem; font-weight: bold; color: var(--text-secondary); cursor: pointer;">×</button>
+        </div>
+
+        <input type="hidden" id="pos-mod-menu-id">
+        <input type="hidden" id="pos-mod-is-custom" value="false">
+
+        <!-- Quantity select -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(19,78,30,0.03); padding: 8px; border-radius: var(--radius-sm);">
+          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">จำนวนจาน/ชิ้น:</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" onclick="POSApp.adjustModQty(-1)" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(19,78,30,0.2); background: white; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">-</button>
+            <span id="pos-mod-qty" style="font-size: 0.95rem; font-weight: 700; min-width: 20px; text-align: center;">1</span>
+            <button type="button" onclick="POSApp.adjustModQty(1)" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(19,78,30,0.2); background: white; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+          </div>
+        </div>
+
+        <!-- Custom Dish Inputs (Visible only when it is a custom item) -->
+        <div id="pos-custom-dish-inputs" style="display: none; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 0.65rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px;">ชื่อเมนูอาหาร *</label>
+            <input type="text" id="pos-custom-name" list="led-suggest-menus" placeholder="เช่น ข้าวผัดต้มยำ" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem;">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 0.65rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px;">ราคาต่อหน่วย (฿) *</label>
+            <input type="number" id="pos-custom-price" placeholder="เช่น 60" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem;">
+          </div>
+        </div>
+
+        <!-- Top-up select -->
+        <div style="margin-bottom: 15px; border-top: 1px dashed rgba(19,78,30,0.08); padding-top: 10px;">
+          <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 6px;">➕ รายการเสริม (Top-up)</label>
+          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+            <button type="button" class="pos-mod-topup-btn" data-name="ไข่ดาว" data-price="10" onclick="POSApp.toggleTopup(this)" style="padding: 6px 12px; border-radius: 15px; border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.7rem; cursor: pointer; white-space: nowrap; background: white;">🍳 + ไข่ดาว (10 ฿)</button>
+            <button type="button" class="pos-mod-topup-btn" data-name="ไข่เจียว" data-price="10" onclick="POSApp.toggleTopup(this)" style="padding: 6px 12px; border-radius: 15px; border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.7rem; cursor: pointer; white-space: nowrap; background: white;">🍳 + ไข่เจียว (10 ฿)</button>
+            <button type="button" class="pos-mod-topup-btn" data-name="น้ำเปล่า" data-price="10" onclick="POSApp.toggleTopup(this)" style="padding: 6px 12px; border-radius: 15px; border: 1px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.7rem; cursor: pointer; white-space: nowrap; background: white;">🥤 + น้ำดื่ม (10 ฿)</button>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" onclick="POSApp.confirmMod()" style="width: 100%; padding: 10px; font-family: inherit; font-size: 0.85rem; font-weight: 700; justify-content: center; height: 36px;">
+          ➕ เพิ่มลงตะกร้า
+        </button>
+      </div>
+    </div>
   </main>
 
   <!-- ==========================================

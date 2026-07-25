@@ -250,7 +250,8 @@ const state = {
   authenticatedRoles: {
     admin: false,
     kitchen: false,
-    marketing: false
+    marketing: false,
+    pos: false
   },
   editingLedgerId: null
 };
@@ -2966,6 +2967,430 @@ const StoreAdmin = {
 };
 
 // ==========================================
+// 6b. MOBILE POINT OF SALE (POS) CONTROLLER
+// ==========================================
+const POSApp = {
+  activeTab: 'menu',       // 'menu' or 'cart'
+  selectedCategory: 'all',  // current category filter
+  selectedPayment: 'เงินสด',
+  posBasket: [],
+  selectedTopups: new Set(), // temporary selected topup names in modal
+
+  init() {
+    this.posBasket = [];
+    this.selectedCategory = 'all';
+    this.selectedPayment = 'เงินสด';
+    this.selectedTopups.clear();
+    
+    // Reset payment selector UI
+    document.querySelectorAll('.pos-pay-btn').forEach(btn => btn.classList.remove('active'));
+    const cashBtn = document.getElementById('pos-pay-cash');
+    if (cashBtn) cashBtn.classList.add('active');
+    
+    const calcSection = document.getElementById('pos-cash-calculator-section');
+    if (calcSection) calcSection.style.display = 'block';
+    
+    const cashInput = document.getElementById('pos-cash-received');
+    if (cashInput) cashInput.value = '';
+    
+    const changeLabel = document.getElementById('pos-cash-change');
+    if (changeLabel) changeLabel.textContent = '0 ฿';
+
+    this.switchTab('menu');
+    this.renderCategoryBar();
+    this.renderMenuGrid();
+    this.renderCart();
+  },
+
+  switchTab(tabName) {
+    this.activeTab = tabName;
+    document.querySelectorAll('.pos-tab-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    
+    const activeTabBtn = document.getElementById(`pos-tab-${tabName}`);
+    if (activeTabBtn) activeTabBtn.classList.add('active');
+
+    document.querySelectorAll('.pos-panel').forEach(panel => {
+      panel.style.display = 'none';
+    });
+    
+    const activePanel = document.getElementById(`pos-panel-${tabName}`);
+    if (activePanel) activePanel.style.display = 'block';
+    
+    if (tabName === 'cart') {
+      this.renderCart();
+    }
+  },
+
+  renderCategoryBar() {
+    const container = document.getElementById('pos-category-bar');
+    if (!container) return;
+
+    // Standard categories + อาหารแห้ง + เครื่องดื่ม
+    const categories = ['all', 'อาหารจานเดียว', 'อาหารแห้ง', 'ทานเล่น', 'เครื่องดื่ม'];
+    
+    let html = '';
+    categories.forEach(cat => {
+      const activeClass = this.selectedCategory === cat ? 'active' : '';
+      const displayLabel = cat === 'all' ? '🔍 ทั้งหมด' : cat;
+      html += `<button class="pos-category-btn ${activeClass}" onclick="POSApp.filterCategory('${cat}')" style="padding: 6px 14px; border-radius: 18px; border: 1.5px solid rgba(19,78,30,0.15); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${displayLabel}</button>`;
+    });
+    
+    container.innerHTML = html;
+  },
+
+  filterCategory(category) {
+    this.selectedCategory = category;
+    this.renderCategoryBar();
+    this.renderMenuGrid();
+  },
+
+  renderMenuGrid() {
+    const container = document.getElementById('pos-menu-grid');
+    if (!container) return;
+
+    const menus = db.get('menus') || [];
+    
+    // Filter menus based on category selection
+    const filteredMenus = menus.filter(m => {
+      if (this.selectedCategory === 'all') return true;
+      return m.category === this.selectedCategory;
+    });
+
+    let html = '';
+    filteredMenus.forEach(m => {
+      html += `
+        <div class="pos-menu-card" onclick="POSApp.openModifierModal('${m.id}')">
+          <span class="pos-menu-card-title">${m.name}</span>
+          <span class="pos-menu-card-price">${m.base_price.toLocaleString()} ฿</span>
+        </div>
+      `;
+    });
+
+    if (filteredMenus.length === 0) {
+      html = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-secondary); padding: 30px 0; font-size: 0.8rem;">ไม่พบรายการอาหารในหมวดหมู่นี้</div>';
+    }
+
+    container.innerHTML = html;
+  },
+
+  openModifierModal(menuId) {
+    const menus = db.get('menus') || [];
+    const item = menus.find(m => m.id === menuId);
+    if (!item) return;
+
+    document.getElementById('pos-mod-menu-id').value = menuId;
+    document.getElementById('pos-mod-is-custom').value = 'false';
+    document.getElementById('pos-mod-title').textContent = item.name;
+    document.getElementById('pos-mod-qty').textContent = '1';
+    
+    // Hide custom input fields
+    document.getElementById('pos-custom-dish-inputs').style.display = 'none';
+
+    // Clear selected topups selection UI state
+    this.selectedTopups.clear();
+    document.querySelectorAll('.pos-mod-topup-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    document.getElementById('pos-modifier-modal').style.display = 'flex';
+  },
+
+  openCustomItemModal() {
+    document.getElementById('pos-mod-menu-id').value = 'custom';
+    document.getElementById('pos-mod-is-custom').value = 'true';
+    document.getElementById('pos-mod-title').textContent = 'กรอกชื่อเมนูอาหารเอง';
+    document.getElementById('pos-mod-qty').textContent = '1';
+    
+    // Show custom input fields
+    document.getElementById('pos-custom-dish-inputs').style.display = 'flex';
+    document.getElementById('pos-custom-name').value = '';
+    document.getElementById('pos-custom-price').value = '';
+
+    // Clear topups selection UI
+    this.selectedTopups.clear();
+    document.querySelectorAll('.pos-mod-topup-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    document.getElementById('pos-modifier-modal').style.display = 'flex';
+  },
+
+  closeModifierModal() {
+    document.getElementById('pos-modifier-modal').style.display = 'none';
+  },
+
+  adjustModQty(change) {
+    const qtyLabel = document.getElementById('pos-mod-qty');
+    let qty = parseInt(qtyLabel.textContent) || 1;
+    qty += change;
+    if (qty < 1) qty = 1;
+    qtyLabel.textContent = qty;
+  },
+
+  toggleTopup(btn) {
+    const name = btn.dataset.name;
+    if (btn.classList.contains('active')) {
+      btn.classList.remove('active');
+      this.selectedTopups.delete(name);
+    } else {
+      btn.classList.add('active');
+      this.selectedTopups.add(name);
+    }
+  },
+
+  confirmMod() {
+    const menuId = document.getElementById('pos-mod-menu-id').value;
+    const isCustom = document.getElementById('pos-mod-is-custom').value === 'true';
+    const qty = parseInt(document.getElementById('pos-mod-qty').textContent) || 1;
+
+    let name = '';
+    let price = 0;
+
+    if (isCustom) {
+      name = document.getElementById('pos-custom-name').value.trim();
+      price = parseFloat(document.getElementById('pos-custom-price').value) || 0;
+      if (!name) {
+        alert('กรุณาระบุชื่อเมนูอาหาร');
+        return;
+      }
+    } else {
+      const menus = db.get('menus') || [];
+      const item = menus.find(m => m.id === menuId);
+      if (!item) return;
+      name = item.name;
+      price = item.base_price;
+    }
+
+    // Topup handling
+    let topupName = null;
+    let topupPrice = 0;
+    let topupQty = 1;
+
+    if (this.selectedTopups.size > 0) {
+      const activeBtn = Array.from(document.querySelectorAll('.pos-mod-topup-btn')).find(b => b.classList.contains('active'));
+      if (activeBtn) {
+        topupName = activeBtn.dataset.name;
+        topupPrice = parseFloat(activeBtn.dataset.price) || 0;
+        topupQty = qty; // Match qty of main dish
+      }
+    }
+
+    this.posBasket.push({
+      name: name,
+      quantity: qty,
+      price: price,
+      topup1_name: topupName,
+      topup1_qty: topupQty,
+      topup1_price: topupPrice
+    });
+
+    this.closeModifierModal();
+    this.renderCart();
+    
+    // Visual cart feedback counter
+    const badge = document.getElementById('pos-cart-badge');
+    if (badge) {
+      badge.textContent = this.posBasket.length;
+      badge.style.display = this.posBasket.length > 0 ? 'inline-block' : 'none';
+    }
+  },
+
+  removeCartItem(index) {
+    this.posBasket.splice(index, 1);
+    this.renderCart();
+    
+    const badge = document.getElementById('pos-cart-badge');
+    if (badge) {
+      badge.textContent = this.posBasket.length;
+      badge.style.display = this.posBasket.length > 0 ? 'inline-block' : 'none';
+    }
+  },
+
+  renderCart() {
+    const listContainer = document.getElementById('pos-cart-list');
+    if (!listContainer) return;
+
+    if (this.posBasket.length === 0) {
+      listContainer.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 30px 0; font-size: 0.8rem;">ยังไม่มีสินค้าในตะกร้าออเดอร์</div>';
+      document.getElementById('pos-grand-total').textContent = '0 ฿';
+      return;
+    }
+
+    let html = '';
+    let grandTotal = 0;
+
+    this.posBasket.forEach((item, index) => {
+      const mainTotal = item.quantity * item.price;
+      const topupTotal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      const total = mainTotal + topupTotal;
+      grandTotal += total;
+
+      let topupDetail = '';
+      if (item.topup1_name) {
+        topupDetail = `<div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px;">+ ${item.topup1_name} x${item.topup1_qty} (+${topupTotal} ฿)</div>`;
+      }
+
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+          <div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">${item.name}</div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px;">${item.quantity} จาน × ${item.price} ฿</div>
+            ${topupDetail}
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary);">${total.toLocaleString()} ฿</span>
+            <button type="button" onclick="POSApp.removeCartItem(${index})" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 0 4px; font-weight: bold;">×</button>
+          </div>
+        </div>
+      `;
+    });
+
+    listContainer.innerHTML = html;
+    document.getElementById('pos-grand-total').textContent = grandTotal.toLocaleString() + ' ฿';
+    
+    this.calculateChange();
+  },
+
+  selectPayment(method) {
+    this.selectedPayment = method;
+    document.querySelectorAll('.pos-pay-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    if (method === 'เงินสด') document.getElementById('pos-pay-cash').classList.add('active');
+    else if (method === 'QR code') document.getElementById('pos-pay-qr').classList.add('active');
+    else if (method === 'โครงการไทยช่วยไทย') document.getElementById('pos-pay-project').classList.add('active');
+
+    const calcSection = document.getElementById('pos-cash-calculator-section');
+    if (calcSection) {
+      calcSection.style.display = method === 'เงินสด' ? 'block' : 'none';
+    }
+  },
+
+  quickCash(amount) {
+    const input = document.getElementById('pos-cash-received');
+    if (!input) return;
+    const current = parseFloat(input.value) || 0;
+    input.value = current + amount;
+    this.calculateChange();
+  },
+
+  calculateChange() {
+    const input = document.getElementById('pos-cash-received');
+    const changeLabel = document.getElementById('pos-cash-change');
+    if (!input || !changeLabel) return;
+
+    let grandTotal = 0;
+    this.posBasket.forEach(item => {
+      const mainTotal = item.quantity * item.price;
+      const topupTotal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      grandTotal += mainTotal + topupTotal;
+    });
+
+    if (this.selectedPayment !== 'เงินสด') {
+      changeLabel.textContent = '0 ฿';
+      return;
+    }
+
+    const received = parseFloat(input.value) || 0;
+    const change = received - grandTotal;
+    
+    if (change < 0) {
+      changeLabel.textContent = 'ยอดเงินไม่พอ';
+      changeLabel.style.color = '#ef4444';
+    } else {
+      changeLabel.textContent = change.toLocaleString() + ' ฿';
+      changeLabel.style.color = '#d97706';
+    }
+  },
+
+  checkout() {
+    if (this.posBasket.length === 0) {
+      alert('กรุณาเลือกรายการอาหารก่อนทำการชำระเงิน');
+      return;
+    }
+
+    let grandTotal = 0;
+    this.posBasket.forEach(item => {
+      const mainTotal = item.quantity * item.price;
+      const topupTotal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      grandTotal += mainTotal + topupTotal;
+    });
+
+    if (this.selectedPayment === 'เงินสด') {
+      const received = parseFloat(document.getElementById('pos-cash-received').value) || 0;
+      if (received < grandTotal) {
+        alert('กรุณากรอกยอดเงินรับมาให้ครบถ้วนถูกต้อง');
+        return;
+      }
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    const type = 'income';
+    const category = 'ขายอาหาร';
+    const id = 'led_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+    const menuName = this.posBasket.map(it => `${it.name} x${it.quantity}`).join(', ');
+    const quantity = this.posBasket.reduce((sum, it) => sum + it.quantity, 0);
+
+    const itemData = {
+      date,
+      type,
+      category,
+      menu_name: menuName,
+      quantity,
+      unit_price: null,
+      amount: grandTotal,
+      payment_method: this.selectedPayment,
+      items: [...this.posBasket],
+      description: 'สั่งซื้อจากแท็บเล็ต POS หน้าร้าน'
+    };
+
+    db.insert('ledger', { id, ...itemData });
+
+    const kitchenOrderId = 'POS-' + Date.now().toString().substr(-5);
+    const orderItems = this.posBasket.map(b => {
+      let notes = '';
+      if (b.topup1_name) notes = `+ ${b.topup1_name}`;
+      return {
+        menu_name: b.name,
+        quantity: b.quantity,
+        price: b.price,
+        notes: notes
+      };
+    });
+
+    const newOrder = {
+      id: kitchenOrderId,
+      order_id: kitchenOrderId,
+      customer_name: 'ลูกค้าหน้าร้าน (POS)',
+      customer_phone: '-',
+      items: orderItems,
+      total_amount: grandTotal,
+      order_status: 'New',
+      payment_status: 'Paid',
+      payment_method: this.selectedPayment,
+      order_datetime: new Date().toISOString().replace('T', ' ').substr(0, 19),
+      source: 'POS หน้าร้าน'
+    };
+    db.insert('orders', newOrder);
+
+    alert('บันทึกออเดอร์ & ส่งเช็คบิลเข้าระบบครัวสำเร็จ!');
+    this.init();
+
+    if (typeof KitchenApp !== 'undefined') KitchenApp.renderBoard();
+    if (typeof StoreAdmin !== 'undefined') {
+      StoreAdmin.renderOverview();
+      StoreAdmin.renderCRM();
+    }
+  }
+};
+
+window.POSApp = POSApp;
+
+// ==========================================
 // 7. KITCHEN BOARD CONTROLLER
 // ==========================================
 const KitchenApp = {
@@ -3248,8 +3673,8 @@ const MarketingApp = {
 // 9. APP INITIALIZATION & VIEW ROUTING
 // ==========================================
 function switchRole(roleName) {
-  // Check authorization for staff roles (admin, kitchen, marketing)
-  if (roleName === 'admin' || roleName === 'kitchen' || roleName === 'marketing') {
+  // Check authorization for staff roles (admin, kitchen, marketing, pos)
+  if (roleName === 'admin' || roleName === 'kitchen' || roleName === 'marketing' || roleName === 'pos') {
     if (!state.authenticatedRoles[roleName]) {
       openStaffLoginModal(roleName);
       return;
@@ -3292,6 +3717,10 @@ function switchRole(roleName) {
     KitchenApp.renderBoard();
   } else if (roleName === 'marketing') {
     MarketingApp.renderCampaigns();
+  } else if (roleName === 'pos') {
+    if (typeof POSApp !== 'undefined') {
+      POSApp.init();
+    }
   }
 }
 
@@ -3317,6 +3746,9 @@ function openStaffLoginModal(roleName) {
   } else if (roleName === 'marketing') {
     roleLabel = 'ฝ่ายการตลาด';
     usernameInput.value = 'marketing';
+  } else if (roleName === 'pos') {
+    roleLabel = 'พนักงานหน้าร้าน (POS)';
+    usernameInput.value = 'pos';
   }
 
   roleDesc.innerHTML = `กรุณาเข้าสู่ระบบเพื่อเข้าใช้งานแผงควบคุม <strong>${roleLabel}</strong>`;
@@ -3337,12 +3769,16 @@ function submitStaffLogin() {
     state.authenticatedRoles.admin = true;
     state.authenticatedRoles.kitchen = true;
     state.authenticatedRoles.marketing = true;
+    state.authenticatedRoles.pos = true;
   } else if (roleName === 'kitchen' && username === 'kitchen' && password === 'kitchen123') {
     success = true;
     state.authenticatedRoles.kitchen = true;
   } else if (roleName === 'marketing' && username === 'marketing' && password === 'marketing123') {
     success = true;
     state.authenticatedRoles.marketing = true;
+  } else if (roleName === 'pos' && username === 'pos' && password === 'pos123') {
+    success = true;
+    state.authenticatedRoles.pos = true;
   }
 
   if (success) {
@@ -3359,6 +3795,7 @@ function logoutStaff() {
     state.authenticatedRoles.admin = false;
     state.authenticatedRoles.kitchen = false;
     state.authenticatedRoles.marketing = false;
+    state.authenticatedRoles.pos = false;
     sessionStorage.setItem('kp_staff_auth', JSON.stringify(state.authenticatedRoles));
     switchRole('customer');
   }
@@ -3413,7 +3850,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Default / Hash-based routing
   const routeHash = window.location.hash.replace('#', '');
-  if (['admin', 'kitchen', 'marketing', 'customer'].includes(routeHash)) {
+  if (['admin', 'kitchen', 'marketing', 'customer', 'pos'].includes(routeHash)) {
     switchRole(routeHash);
   } else {
     switchRole('customer');
@@ -3422,7 +3859,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen to hash changes for dashboard navigation on production
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash.replace('#', '');
-    if (['admin', 'kitchen', 'marketing', 'customer'].includes(hash)) {
+    if (['admin', 'kitchen', 'marketing', 'customer', 'pos'].includes(hash)) {
       switchRole(hash);
     }
   });
