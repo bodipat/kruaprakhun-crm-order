@@ -2305,24 +2305,40 @@ const StoreAdmin = {
       return;
     }
     
+    // Top-up items extraction
+    const topupName = document.getElementById('led-topup1-name').value.trim() || null;
+    const topupQty = parseInt(document.getElementById('led-topup1-qty').value) || 1;
+    const topupPrice = parseFloat(document.getElementById('led-topup1-price').value) || 0;
+    
     state.currentLedgerBasket = state.currentLedgerBasket || [];
     state.currentLedgerBasket.push({
       name: name,
       quantity: qty,
-      price: price
+      price: price,
+      topup1_name: topupName,
+      topup1_qty: topupQty,
+      topup1_price: topupPrice
     });
     
     // Clear input fields
     document.getElementById('led-custom-menu-name').value = '';
     document.getElementById('led-menu-price').value = '';
+    document.getElementById('led-topup1-name').value = '';
+    document.getElementById('led-topup1-qty').value = '1';
+    document.getElementById('led-topup1-price').value = '';
     document.getElementById('led-quantity').value = '1';
+    document.getElementById('led-topup1-name').value = '';
+    document.getElementById('led-topup1-qty').value = '1';
+    document.getElementById('led-topup1-price').value = '';
     
     this.renderBasket();
     
     // Update grand total
     let total = 0;
     state.currentLedgerBasket.forEach(item => {
-      total += item.quantity * item.price;
+      const mainPrice = item.quantity * item.price;
+      const topupPriceVal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      total += mainPrice + topupPriceVal;
     });
     document.getElementById('led-amount').value = Math.round(total);
   },
@@ -2334,7 +2350,9 @@ const StoreAdmin = {
     // Update grand total
     let total = 0;
     state.currentLedgerBasket.forEach(item => {
-      total += item.quantity * item.price;
+      const mainPrice = item.quantity * item.price;
+      const topupPriceVal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      total += mainPrice + topupPriceVal;
     });
     document.getElementById('led-amount').value = Math.round(total);
   },
@@ -2354,12 +2372,23 @@ const StoreAdmin = {
     html += '<tr style="border-bottom: 1px solid rgba(19,78,30,0.1); font-weight: 600; color: var(--primary);"><td style="padding: 4px;">รายการ</td><td style="padding: 4px; text-align: center;">จำนวน</td><td style="padding: 4px; text-align: right;">ราคา</td><td style="padding: 4px; text-align: center;">ลบ</td></tr>';
     
     state.currentLedgerBasket.forEach((item, index) => {
-      const itemTotal = item.quantity * item.price;
+      const mainPrice = item.quantity * item.price;
+      const topupPriceVal = item.topup1_name ? (item.topup1_qty * item.topup1_price) : 0;
+      const itemTotal = mainPrice + topupPriceVal;
+      
+      let topupText = '';
+      if (item.topup1_name) {
+        topupText = `<div style="font-size: 0.65rem; color: var(--text-secondary); margin-left: 10px; font-style: italic;">+ ${item.topup1_name} x${item.topup1_qty} (+${topupPriceVal} ฿)</div>`;
+      }
+      
       html += `<tr style="border-bottom: 1px solid rgba(19,78,30,0.05);">
-        <td style="padding: 4px; font-weight: 500;">${item.name}</td>
-        <td style="padding: 4px; text-align: center;">${item.quantity}</td>
-        <td style="padding: 4px; text-align: right;">${itemTotal.toLocaleString()} ฿</td>
-        <td style="padding: 4px; text-align: center;"><button type="button" onclick="StoreAdmin.removeBasketItem(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold; font-size: 1.1rem; padding: 0 4px;">×</button></td>
+        <td style="padding: 4px; vertical-align: top;">
+          <div style="font-weight: 500;">${item.name}</div>
+          ${topupText}
+        </td>
+        <td style="padding: 4px; text-align: center; vertical-align: top;">${item.quantity}</td>
+        <td style="padding: 4px; text-align: right; vertical-align: top;">${itemTotal.toLocaleString()} ฿</td>
+        <td style="padding: 4px; text-align: center; vertical-align: top;"><button type="button" onclick="StoreAdmin.removeBasketItem(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold; font-size: 1.1rem; padding: 0 4px;">×</button></td>
       </tr>`;
     });
     
@@ -2574,7 +2603,13 @@ const StoreAdmin = {
           } else {
             if (item.category === 'ขายอาหาร') {
               if (item.items && Array.isArray(item.items) && item.items.length > 0) {
-                displayDesc = `ขายอาหาร: [${item.items.map(it => `${it.name} x${it.quantity}`).join(', ')}]`;
+                displayDesc = `ขายอาหาร: [${item.items.map(it => {
+                  let str = `${it.name} x${it.quantity}`;
+                  if (it.topup1_name) {
+                    str += ` (+${it.topup1_name} x${it.topup1_qty})`;
+                  }
+                  return str;
+                }).join(', ')}]`;
               } else {
                 const menuName = item.menu_name || 'ขายอาหาร';
                 displayDesc = `ขายอาหาร: ${menuName}`;
@@ -2788,6 +2823,9 @@ const StoreAdmin = {
     document.getElementById('led-product-name').value = '';
     document.getElementById('led-custom-menu-name').value = '';
     document.getElementById('led-menu-price').value = '';
+    document.getElementById('led-topup1-name').value = '';
+    document.getElementById('led-topup1-qty').value = '1';
+    document.getElementById('led-topup1-price').value = '';
     document.getElementById('led-type').value = 'expense';
     this.handleLedgerFormTypeChange();
     
@@ -2877,7 +2915,13 @@ const StoreAdmin = {
         
         let itemNameFinal = itemName;
         if (item.type === 'income' && item.category === 'ขายอาหาร' && item.items && Array.isArray(item.items) && item.items.length > 0) {
-          itemNameFinal = item.items.map(it => `${it.name} x${it.quantity}`).join(' + ');
+          itemNameFinal = item.items.map(it => {
+            let str = `${it.name} x${it.quantity}`;
+            if (it.topup1_name) {
+              str += ` + ${it.topup1_name} x${it.topup1_qty}`;
+            }
+            return str;
+          }).join(' + ');
         }
         const payMethodStr = item.payment_method || (item.isVirtual ? 'QR code' : 'เงินสด');
 

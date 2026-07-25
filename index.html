@@ -801,6 +801,17 @@
                         </div>
                       </div>
 
+                      <!-- Top-up / Add-ons section -->
+                      <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(19,78,30,0.08); margin-bottom: 6px;">
+                        <label style="font-size: 0.65rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 4px;">➕ รายการเสริม (เช่น ไข่ดาว)</label>
+                        <div style="display: grid; grid-template-columns: 1fr 50px 70px; gap: 4px; align-items: center;">
+                          <input type="text" id="led-topup1-name" list="led-suggest-topups" placeholder="เช่น ไข่ดาว" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                          <input type="number" id="led-topup1-qty" min="1" value="1" placeholder="จำนวน" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit; text-align: center;">
+                          <input type="number" id="led-topup1-price" min="0" placeholder="ราคา" style="padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(19, 78, 30, 0.08); font-size: 0.7rem; font-family: inherit;">
+                        </div>
+                        <datalist id="led-suggest-topups"></datalist>
+                      </div>
+
                       <button type="button" class="btn btn-primary" onclick="StoreAdmin.addBasketItem()" style="width: 100%; padding: 5px; font-size: 0.7rem; height: 26px; font-family: var(--font-prompt); justify-content: center; align-items: center; display: inline-flex;">
                         ➕ เพิ่มรายการลงออเดอร์
                       </button>
