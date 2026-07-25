@@ -2508,10 +2508,18 @@ const StoreAdmin = {
       
       // Accumulate manual menu sales
       combinedLedger.forEach(item => {
-        if (item.type === 'income' && item.category === 'ขายอาหาร' && item.quantity) {
-          const name = item.menu_name || 'ไม่ระบุชื่อเมนู';
-          const qty = parseInt(item.quantity) || 0;
-          menuSales[name] = (menuSales[name] || 0) + qty;
+        if (item.type === 'income' && item.category === 'ขายอาหาร') {
+          if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+            item.items.forEach(it => {
+              const name = it.name || 'ไม่ระบุชื่อเมนู';
+              const qty = parseInt(it.quantity) || 0;
+              menuSales[name] = (menuSales[name] || 0) + qty;
+            });
+          } else if (item.quantity) {
+            const name = item.menu_name || 'ไม่ระบุชื่อเมนู';
+            const qty = parseInt(item.quantity) || 0;
+            menuSales[name] = (menuSales[name] || 0) + qty;
+          }
         }
       });
       
