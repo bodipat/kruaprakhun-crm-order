@@ -2156,25 +2156,24 @@ const StoreAdmin = {
     
     if (type === 'income' && category === 'ขายอาหาร') {
       menuSection.style.display = 'block';
-      // Populate menu dropdown if empty
       const menuSelect = document.getElementById('led-menu-select');
-      if (menuSelect.options.length === 0) {
-        const menus = db.get('menus') || [];
-        
-        // Add custom menu option first
-        const customEl = document.createElement('option');
-        customEl.value = 'custom';
-        customEl.textContent = '-- กรอกชื่อเมนูเอง --';
-        menuSelect.appendChild(customEl);
-        
-        menus.forEach(m => {
-          const el = document.createElement('option');
-          el.value = m.id;
-          el.textContent = m.name;
-          el.dataset.price = m.base_price;
-          menuSelect.appendChild(el);
-        });
-      }
+      menuSelect.innerHTML = '';
+      
+      const menus = db.get('menus') || [];
+      
+      // Add custom menu option first
+      const customEl = document.createElement('option');
+      customEl.value = 'custom';
+      customEl.textContent = '-- กรอกชื่อเมนูเอง --';
+      menuSelect.appendChild(customEl);
+      
+      menus.forEach(m => {
+        const el = document.createElement('option');
+        el.value = m.id;
+        el.textContent = m.name;
+        el.dataset.price = m.base_price;
+        menuSelect.appendChild(el);
+      });
       this.handleLedgerMenuSelectChange();
     } else {
       menuSection.style.display = 'none';
